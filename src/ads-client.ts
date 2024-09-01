@@ -353,8 +353,8 @@ export class Client extends EventEmitter<ClientEvents> {
    * @param message Warning message
    */
   private warn(message: string) {
-    if (!this.settings.hideConsoleWarnings) console.log(`WARNING: ${message}`)
-    this.emit('warning', message)
+    if (!this.settings.hideConsoleWarnings) console.log(`WARNING: ${message}`);
+    this.emit('warning', message);
   }
 
   /**
