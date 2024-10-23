@@ -140,17 +140,17 @@ export class Client extends EventEmitter<AdsClientEvents> {
   /**
    * Debug instance for debug level 1.
    */
-  private debug = Debug("ads-client");
+  private debug?: Debug.Debugger;
 
   /**
    * Debug instance for debug level 2.
    */
-  private debugD = Debug(`ads-client:details`);
+  private debugD?: Debug.Debugger;
 
   /**
    * Debug instance for debug level 3.
    */
-  private debugIO = Debug(`ads-client:raw-data`);
+  private debugIO?: Debug.Debugger;
 
   /**
    * Active debug level.
@@ -394,11 +394,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param data Data to write
    */
   private socketWrite(data: Buffer) {
-    if (this.debugIO.enabled) {
-      this.debugIO(`IO out ------> ${data.byteLength} bytes : ${data.toString('hex')}`);
-
+    if (this.debugIO) {
+      this.debugIO?.(`IO out ------> ${data.byteLength} bytes : ${data.toString('hex')}`);
     } else {
-      this.debugD(`IO out ------> ${data.byteLength} bytes`);
+      this.debugD?.(`IO out ------> ${data.byteLength} bytes`);
     }
 
     this.socket?.write(data);
@@ -430,11 +429,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
       }
 
       if (this.socket) {
-        this.debug(`connectToTarget(): Socket is already assigned (need to disconnect first)`);
+        this.debug?.(`connectToTarget(): Socket is already assigned (need to disconnect first)`);
         return reject(new ClientError(`connectToTarget(): Connection is already opened. Close the connection first by calling disconnect()`));
       }
 
-      this.debug(`connectToTarget(): Connecting to target at ${this.settings.routerAddress}:${this.settings.routerTcpPort} (reconnecting: ${isReconnecting})`);
+      this.debug?.(`connectToTarget(): Connecting to target at ${this.settings.routerAddress}:${this.settings.routerTcpPort} (reconnecting: ${isReconnecting})`);
 
       //Creating a socket and setting it up
       const socket = new Socket();
@@ -442,7 +441,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening error event during connection
       socket.once("error", (err: NodeJS.ErrnoException) => {
-        this.debug("connectToTarget(): Socket connect failed: %O", err);
+        this.debug?.("connectToTarget(): Socket connect failed: %O", err);
 
         //Remove all events from socket
         socket.removeAllListeners();
@@ -456,7 +455,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening close event during connection
       socket.once("close", hadError => {
-        this.debug(`connectToTarget(): Socket closed by remote, connection failed`);
+        this.debug?.(`connectToTarget(): Socket closed by remote, connection failed`);
 
         //Remove all events from socket
         socket.removeAllListeners();
@@ -470,7 +469,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening end event during connection
       socket.once("end", () => {
-        this.debug(`connectToTarget(): Socket connection ended by remote, connection failed.`);
+        this.debug?.(`connectToTarget(): Socket connection ended by remote, connection failed.`);
 
         //Remove all events from socket
         socket.removeAllListeners();
@@ -487,7 +486,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening timeout event during connection
       socket.once("timeout", () => {
-        this.debug(`connectToTarget(): Socket timeout - no response from target in ${this.settings.timeoutDelay} ms`);
+        this.debug?.(`connectToTarget(): Socket timeout - no response from target in ${this.settings.timeoutDelay} ms`);
 
         //No more timeout needed
         socket.setTimeout(0);
@@ -505,7 +504,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening for connect event
       socket.once("connect", async () => {
-        this.debug(`connectToTarget(): Socket connection established to ${this.settings.routerAddress}:${this.settings.routerTcpPort}`);
+        this.debug?.(`connectToTarget(): Socket connection established to ${this.settings.routerAddress}:${this.settings.routerTcpPort}`);
 
         //No more timeout needed
         socket.setTimeout(0);
@@ -526,7 +525,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
             targetAdsPort: this.settings.targetAdsPort
           };
 
-          this.debug(`connectToTarget(): ADS port registered. Our AMS address is ${this.connection.localAmsNetId}:${this.connection.localAdsPort}`);
+          this.debug?.(`connectToTarget(): ADS port registered. Our AMS address is ${this.connection.localAmsNetId}:${this.connection.localAdsPort}`);
         } catch (err) {
           if (socket) {
             socket.destroy();
@@ -584,10 +583,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       //Listening data event
       socket.on("data", data => {
-        if (this.debugIO.enabled) {
-          this.debugIO(`IO in  <------ ${data.byteLength} bytes from ${socket.remoteAddress}: ${data.toString("hex")}`);
-        } else if (this.debugD.enabled) {
-          this.debugD(`IO in  <------ ${data.byteLength} bytes from ${socket.remoteAddress}`);
+        if (this.debugIO) {
+          this.debugIO?.(`IO in  <------ ${data.byteLength} bytes from ${socket.remoteAddress}: ${data.toString("hex")}`);
+        } else if (this.debugD) {
+          this.debug?.(`IO in  <------ ${data.byteLength} bytes from ${socket.remoteAddress}`);
         }
 
         this.receiveBuffer = Buffer.concat([this.receiveBuffer, data]);
@@ -625,7 +624,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    */
   private disconnectFromTarget(forceDisconnect = false, isReconnecting = false) {
     return new Promise<void>(async (resolve, reject) => {
-      this.debug(`disconnectFromTarget(): Disconnecting (force: ${forceDisconnect})`);
+      this.debug?.(`disconnectFromTarget(): Disconnecting (force: ${forceDisconnect})`);
 
       try {
         if (this.socketConnectionLostHandler) {
@@ -686,7 +685,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         this.socket?.destroy();
         this.socket = undefined;
 
-        this.debug(`disconnectFromTarget(): Connection closed successfully`);
+        this.debug?.(`disconnectFromTarget(): Connection closed successfully`);
         this.emit("disconnect", isReconnecting);
         return resolve();
 
@@ -705,7 +704,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         this.metaData = { ...this.defaultMetaData };
         this.activeSubscriptions = {};
 
-        this.debug(`disconnectFromTarget(): Connection closing failed, connection was forced to close`);
+        this.debug?.(`disconnectFromTarget(): Connection closing failed, connection was forced to close`);
         this.emit("disconnect", isReconnecting);
         return reject(new ClientError(`disconnect(): Disconnected with errors: ${(disconnectError as Error).message}`, err));
       }
@@ -728,31 +727,31 @@ export class Client extends EventEmitter<AdsClientEvents> {
       await this.backupSubscriptions(false);
 
       if (this.socket) {
-        this.debug(`reconnectToTarget(): Trying to disconnect`);
+        this.debug?.(`reconnectToTarget(): Trying to disconnect`);
         await this.disconnectFromTarget(forceDisconnect, isReconnecting).catch();
       }
-      this.debug(`reconnectToTarget(): Trying to connect...`);
+      this.debug?.(`reconnectToTarget(): Trying to connect...`);
       return this.connectToTarget(true)
         .then(async (res) => {
-          this.debug(`reconnectToTarget(): Connected!`);
+          this.debug?.(`reconnectToTarget(): Connected!`);
 
           //Trying to subscribe to previous subscriptions again
           const failures = await this.restoreSubscriptions();
 
           if (!failures.length) {
             isReconnecting && this.warn(`Reconnected and all subscriptions were restored!`);
-            this.debug(`reconnectToTarget(): Reconnected and all subscriptions were restored!`);
+            this.debug?.(`reconnectToTarget(): Reconnected and all subscriptions were restored!`);
 
           } else {
             this.warn(`Reconnected but failed to restore following subscriptions:\n - ${failures.join('\n - ')}`);
-            this.debug(`reconnectToTarget(): Reconnected but failed to restore following subscriptions: ${failures.join(', ')}`);
+            this.debug?.(`reconnectToTarget(): Reconnected but failed to restore following subscriptions: ${failures.join(', ')}`);
           }
 
           this.emit('reconnect', !failures.length, failures);
           resolve(res);
         })
         .catch(err => {
-          this.debug(`reconnectToTarget(): Reconnecting failed ${err.message}`);
+          this.debug?.(`reconnectToTarget(): Reconnecting failed ${err.message}`);
           reject(err);
         });
     });
@@ -767,7 +766,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     return new Promise<AmsTcpPacket>(async (resolve, reject) => {
       //If manually given we can skip this
       if (this.settings.localAmsNetId && this.settings.localAdsPort) {
-        this.debug(`registerAdsPort(): Using manually provided local AmsNetId and ADS port (${this.settings.localAmsNetId}:${this.settings.localAdsPort})`);
+        this.debug?.(`registerAdsPort(): Using manually provided local AmsNetId and ADS port (${this.settings.localAmsNetId}:${this.settings.localAdsPort})`);
 
         const res = {
           amsTcp: {
@@ -780,7 +779,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         return resolve(res);
       }
 
-      this.debug(`registerAdsPort(): Registering an ADS port from target router (${this.settings.routerAddress}:${this.settings.routerTcpPort})`);
+      this.debug?.(`registerAdsPort(): Registering an ADS port from target router (${this.settings.routerAddress}:${this.settings.routerTcpPort})`);
 
       const packet = Buffer.alloc(8);
       let pos = 0;
@@ -806,7 +805,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
         const data = res.amsTcp.data as AmsPortRegisteredData;
 
-        this.debug(`registerAdsPort(): ADS port registered, assigned AMS address is ${data.amsNetId}:${data.adsPort}`);
+        this.debug?.(`registerAdsPort(): ADS port registered, assigned AMS address is ${data.amsNetId}:${data.adsPort}`);
         resolve(res);
       }
 
@@ -823,14 +822,14 @@ export class Client extends EventEmitter<AdsClientEvents> {
             errorStr: `Timeout - no response in ${this.settings.timeoutDelay} ms`
           }
         };
-        this.debug(`registerAdsPort(): Failed to register ADS port: Timeout - no response in ${this.settings.timeoutDelay} ms`);
+        this.debug?.(`registerAdsPort(): Failed to register ADS port: Timeout - no response in ${this.settings.timeoutDelay} ms`);
         return reject(new ClientError(`registerAdsPort(): Timeout - no response in ${this.settings.timeoutDelay} ms`, adsError));
 
       }, this.settings.timeoutDelay);
 
       const errorHandler = () => {
         this.portRegisterTimeoutTimer && clearTimeout(this.portRegisterTimeoutTimer);
-        this.debugD("registerAdsPort(): Socket connection error during port registeration");
+        this.debugD?.("registerAdsPort(): Socket connection error during port registeration");
         reject(new ClientError(`registerAdsPort(): Socket connection error during port registeration`));
       };
 
@@ -856,17 +855,17 @@ export class Client extends EventEmitter<AdsClientEvents> {
   private unregisterAdsPort() {
     return new Promise<void>(async (resolve, reject) => {
       if (this.settings.localAmsNetId && this.settings.localAdsPort) {
-        this.debug(`unregisterAdsPort(): Local AmsNetId and ADS port manually provided, no need to unregister`);
+        this.debug?.(`unregisterAdsPort(): Local AmsNetId and ADS port manually provided, no need to unregister`);
 
         this.socket?.end(() => {
-          this.debugD(`unregisterAdsPort(): Socket closed`);
+          this.debugD?.(`unregisterAdsPort(): Socket closed`);
           this.socket?.destroy();
-          this.debugD(`unregisterAdsPort(): Socket destroyed`);
+          this.debugD?.(`unregisterAdsPort(): Socket destroyed`);
         })
         return resolve();
       }
 
-      this.debugD(`unregisterAdsPort(): Unregistering ADS port ${this.connection.localAdsPort} from target ${this.settings.routerAddress}:${this.settings.routerTcpPort}`);
+      this.debugD?.(`unregisterAdsPort(): Unregistering ADS port ${this.connection.localAdsPort} from target ${this.settings.routerAddress}:${this.settings.routerTcpPort}`);
 
       if (!this.socket || !this.connection.localAdsPort) {
         return resolve();
@@ -887,24 +886,24 @@ export class Client extends EventEmitter<AdsClientEvents> {
       buffer.writeUInt16LE(this.connection.localAdsPort, pos);
 
       this.socket.once('timeout', () => {
-        this.debugD(`unregisterAdsPort(): Timeout during port unregister. Closing connection.`);
+        this.debugD?.(`unregisterAdsPort(): Timeout during port unregister. Closing connection.`);
 
         this.socket?.end(() => {
-          this.debugD(`unregisterAdsPort(): Socket closed after timeout`);
+          this.debugD?.(`unregisterAdsPort(): Socket closed after timeout`);
           this.socket?.destroy();
-          this.debugD(`unregisterAdsPort(): Socket destroyed after timeout`);
+          this.debugD?.(`unregisterAdsPort(): Socket destroyed after timeout`);
         });
       })
 
       //When socket emits close event, the ads port is unregistered and connection closed
       this.socket.once('close', (hadError: boolean) => {
-        this.debugD(`unregisterAdsPort(): Ads port unregistered and socket connection closed (hadError: ${hadError}).`)
+        this.debugD?.(`unregisterAdsPort(): Ads port unregistered and socket connection closed (hadError: ${hadError}).`)
         resolve()
       })
 
       //Sometimes close event is not received, so resolve already here
       this.socket.once('end', () => {
-        this.debugD(`unregisterAdsPort(): Socket connection ended, connection closed.`);
+        this.debugD?.(`unregisterAdsPort(): Socket connection ended, connection closed.`);
         clearTimeout(this.portRegisterTimeoutTimer);
         this.amsTcpCallback = undefined;
         this.socket?.destroy();
@@ -916,7 +915,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         clearTimeout(this.portRegisterTimeoutTimer);
 
         if (res.amsTcp.command === ADS.AMS_HEADER_FLAG.AMS_TCP_PORT_CLOSE) {
-          this.debug(`unregisterAdsPort(): ADS port unregistered`);
+          this.debug?.(`unregisterAdsPort(): ADS port unregistered`);
           this.socket?.destroy();
           resolve();
         }
@@ -935,7 +934,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
             errorStr: `Timeout - no response in ${this.settings.timeoutDelay} ms`
           }
         };
-        this.debug(`unregisterAdsPort(): Failed to unregister ADS port: Timeout - no response in ${this.settings.timeoutDelay} ms`);
+        this.debug?.(`unregisterAdsPort(): Failed to unregister ADS port: Timeout - no response in ${this.settings.timeoutDelay} ms`);
         return reject(new ClientError(`unregisterAdsPort(): Timeout - no response in ${this.settings.timeoutDelay} ms`, adsError));
       }, this.settings.timeoutDelay);
 
@@ -1046,12 +1045,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       this.connectionDownSince = undefined;
 
       if (!oldState || state.adsState !== oldState.adsState) {
-        this.debug(`checkTcSystemState(): TwinCAT system state has changed from ${oldState?.adsStateStr} to ${state.adsStateStr}`)
+        this.debug?.(`checkTcSystemState(): TwinCAT system state has changed from ${oldState?.adsStateStr} to ${state.adsStateStr}`)
         this.emit('tcSystemStateChange', state, oldState);
 
         //If system is not in run mode, we have lost the connection (such as config mode)
         if (state.adsState !== ADS.ADS_STATE.Run) {
-          this.debug(`checkTcSystemState(): TwinCAT system state is in ${state.adsStateStr} mode instead of Run -> connection lost`);
+          this.debug?.(`checkTcSystemState(): TwinCAT system state is in ${state.adsStateStr} mode instead of Run -> connection lost`);
 
           startTimer = false;
           this.onConnectionLost();
@@ -1059,7 +1058,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         } else if (state.adsState === ADS.ADS_STATE.Run && !this.reconnectionTimer.timer) {
           //If system change from config/stop/etc. to run while we aren't reconnecting, we should reconnect
           //This can only happen when using allowHalfOpen and connecting to a system that's initially in config mode
-          this.debug(`checkTcSystemState(): TwinCAT system state is now in ${state.adsStateStr} mode -> reconnecting`);
+          this.debug?.(`checkTcSystemState(): TwinCAT system state is now in ${state.adsStateStr} mode -> reconnecting`);
 
           startTimer = false;
           this.onConnectionLost();
@@ -1076,7 +1075,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       const time = Date.now() - this.connectionDownSince.getTime();
 
       if (time >= this.settings.connectionDownDelay) {
-        this.debug(`checkTcSystemState(): No connection for longer than ${this.settings.connectionDownDelay} ms. Connection is lost.`)
+        this.debug?.(`checkTcSystemState(): No connection for longer than ${this.settings.connectionDownDelay} ms. Connection is lost.`)
 
         startTimer = false;
         this.onConnectionLost();
@@ -1121,12 +1120,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
     let stateChanged = false;
 
     if (this.metaData.plcRuntimeState === undefined || this.metaData.plcRuntimeState.adsState !== res.adsState) {
-      this.debug(`onPlcRuntimeStateChanged(): PLC runtime state (adsState) changed from ${this.metaData.plcRuntimeState === undefined ? 'UNKNOWN' : this.metaData.plcRuntimeState.adsStateStr} to ${res.adsStateStr}`);
+      this.debug?.(`onPlcRuntimeStateChanged(): PLC runtime state (adsState) changed from ${this.metaData.plcRuntimeState === undefined ? 'UNKNOWN' : this.metaData.plcRuntimeState.adsStateStr} to ${res.adsStateStr}`);
       stateChanged = true;
     }
 
     if (this.metaData.plcRuntimeState === undefined || this.metaData.plcRuntimeState.deviceState !== res.deviceState) {
-      this.debug(`onPlcRuntimeStateChanged(): PLC runtime state (deviceState) changed from ${this.metaData.plcRuntimeState === undefined ? 'UNKNOWN' : this.metaData.plcRuntimeState.deviceState} to ${res.deviceState}`);
+      this.debug?.(`onPlcRuntimeStateChanged(): PLC runtime state (deviceState) changed from ${this.metaData.plcRuntimeState === undefined ? 'UNKNOWN' : this.metaData.plcRuntimeState.deviceState} to ${res.deviceState}`);
       stateChanged = true;
     }
 
@@ -1157,13 +1156,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //Checking if symbol version has really changed
     if (this.metaData.plcSymbolVersion === undefined) {
       //This happens during connect (do nothing special)
-      this.debug(`onPlcSymbolVersionChanged(): PLC runtime symbol version is now ${symbolVersion}`);
+      this.debug?.(`onPlcSymbolVersionChanged(): PLC runtime symbol version is now ${symbolVersion}`);
 
     } else if (this.metaData.plcSymbolVersion === symbolVersion) {
-      this.debug(`onPlcSymbolVersionChanged(): PLC runtime symbol version received (not changed). Version is now ${symbolVersion}`);
+      this.debug?.(`onPlcSymbolVersionChanged(): PLC runtime symbol version received (not changed). Version is now ${symbolVersion}`);
 
     } else if (this.metaData.plcSymbolVersion !== symbolVersion) {
-      this.debug(`onPlcSymbolVersionChanged(): PLC runtime symbol version changed from ${this.metaData.plcSymbolVersion === undefined ? 'UNKNOWN' : this.metaData.plcSymbolVersion} to ${symbolVersion} -> Refreshing all cached data and subscriptions`);
+      this.debug?.(`onPlcSymbolVersionChanged(): PLC runtime symbol version changed from ${this.metaData.plcSymbolVersion === undefined ? 'UNKNOWN' : this.metaData.plcSymbolVersion} to ${symbolVersion} -> Refreshing all cached data and subscriptions`);
 
       //Clear all cached symbol and data types etc.
       this.metaData.plcDataTypes = {};
@@ -1175,7 +1174,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         await this.readPlcUploadInfo();
 
       } catch (err) {
-        this.debug(`onPlcSymbolVersionChanged(): Failed to refresh upload info`);
+        this.debug?.(`onPlcSymbolVersionChanged(): Failed to refresh upload info`);
       }
 
       //Refreshing symbol cache (if needed)
@@ -1184,7 +1183,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           await this.cacheSymbols();
 
         } catch (err) {
-          this.debug(`onPlcSymbolVersionChanged(): Failed to refresh symbol cache`);
+          this.debug?.(`onPlcSymbolVersionChanged(): Failed to refresh symbol cache`);
         }
       }
 
@@ -1194,7 +1193,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           await this.cacheDataTypes();
 
         } catch (err) {
-          this.debug(`onPlcSymbolVersionChanged(): Failed to refresh data type cache`);
+          this.debug?.(`onPlcSymbolVersionChanged(): Failed to refresh data type cache`);
         }
       }
 
@@ -1205,7 +1204,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       } catch (err) {
         this.warn(`Target PLC symbol version changed and all subscriptions were not restored (data might be lost from now on). Error info: ${JSON.stringify(err)}`);
-        this.debug(`onPlcSymbolVersionChanged(): Failed to restore all subscriptions. Error: %o`, err);
+        this.debug?.(`onPlcSymbolVersionChanged(): Failed to restore all subscriptions. Error: %o`, err);
       }
     }
 
@@ -1234,7 +1233,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param socketFailure If `true`, the connection was lost due to a TCP socket problem (default: `false`)
    */
   private async onConnectionLost(socketFailure = false) {
-    this.debug(`onConnectionLost(): Connection was lost. Socket failure: ${socketFailure}`);
+    this.debug?.(`onConnectionLost(): Connection was lost. Socket failure: ${socketFailure}`);
 
     this.connection.connected = false;
     this.emit('connectionLost', socketFailure);
@@ -1257,7 +1256,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //Try to reconnect
       this.reconnectToTarget(socketFailure, true)
         .then(res => {
-          this.debug(`onConnectionLost()/tryToReconnect(): Reconnected successfully as ${res.localAmsNetId}:${res.localAdsPort}`);
+          this.debug?.(`onConnectionLost()/tryToReconnect(): Reconnected successfully as ${res.localAmsNetId}:${res.localAdsPort}`);
 
           //Success -> dispose reconnection timer
           this.clearTimer(this.reconnectionTimer);
@@ -1266,7 +1265,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         .catch(err => {
           //Reconnecting failed
           if (firstRetryAttempt) {
-            this.debug(`onConnectionLost()/tryToReconnect(): Reconnecting failed, keeping trying in the background (${(err as Error).message}`);
+            this.debug?.(`onConnectionLost()/tryToReconnect(): Reconnecting failed, keeping trying in the background (${(err as Error).message}`);
             this.warn(`Reconnecting failed. Keeping trying in the background every ${this.settings.reconnectInterval} ms...`);
           }
 
@@ -1278,7 +1277,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
               this.settings.reconnectInterval
             );
           } else {
-            this.debugD("onConnectionLost()/tryToReconnect(): Timer is no more valid, quiting here");
+            this.debugD?.("onConnectionLost()/tryToReconnect(): Timer is no more valid, quiting here");
           }
         });
     }
@@ -1310,7 +1309,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //4. Create full AMS/TCP packet
     const amsTcpRequest = Buffer.concat([amsTcpHeader, amsHeader, adsData]);
 
-    this.debugD(`createAmsTcpRequest(): AMS/TCP request created (${amsTcpRequest.byteLength} bytes)`);
+    this.debugD?.(`createAmsTcpRequest(): AMS/TCP request created (${amsTcpRequest.byteLength} bytes)`);
 
     return amsTcpRequest;
   }
@@ -1361,11 +1360,8 @@ export class Client extends EventEmitter<AdsClientEvents> {
     header.writeUInt32LE(packet.ams.invokeId, pos);
     pos += 4;
 
-    this.debugD(`createAmsHeader(): AMS header created (${header.byteLength} bytes)`);
-
-    if (this.debugIO.enabled) {
-      this.debugIO(`createAmsHeader(): AMS header created: %o`, header.toString('hex'));
-    }
+    this.debugD?.(`createAmsHeader(): AMS header created (${header.byteLength} bytes)`);
+    this.debugIO?.(`createAmsHeader(): AMS header created: %o`, header.toString('hex'));
 
     return header;
   }
@@ -1389,11 +1385,8 @@ export class Client extends EventEmitter<AdsClientEvents> {
     header.writeUInt32LE(amsHeader.byteLength + packet.ams.dataLength, pos);
     pos += 4;
 
-    this.debugD(`createAmsTcpHeader(): AMS/TCP header created (${header.byteLength} bytes)`);
-
-    if (this.debugIO.enabled) {
-      this.debugIO(`createAmsTcpHeader(): AMS/TCP header created: %o`, header.toString('hex'));
-    }
+    this.debugD?.(`createAmsTcpHeader(): AMS/TCP header created (${header.byteLength} bytes)`);
+    this.debugIO?.(`createAmsTcpHeader(): AMS/TCP header created: %o`, header.toString('hex'));
 
     return header;
   }
@@ -1464,7 +1457,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param data Buffer that contains data for a single full AMS/TCP packet
    */
   private parseAmsTcpHeader(data: Buffer): { amsTcp: AmsTcpHeader, data: Buffer } {
-    this.debugD(`parseAmsTcpHeader(): Starting to parse AMS/TCP header`)
+    this.debugD?.(`parseAmsTcpHeader(): Starting to parse AMS/TCP header`)
 
     let pos = 0;
     const amsTcp = {} as AmsTcpHeader;
@@ -1489,7 +1482,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //Remove data (basically creates an empty buffer..)
       data = data.subarray(data.byteLength);
     }
-    this.debugD(`parseAmsTcpHeader(): AMS/TCP header parsed: %o`, amsTcp);
+    this.debugD?.(`parseAmsTcpHeader(): AMS/TCP header parsed: %o`, amsTcp);
 
     return { amsTcp, data };
   }
@@ -1502,13 +1495,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param data Buffer that contains data for a single AMS packet (without AMS/TCP header)
    */
   private parseAmsHeader(data: Buffer): { ams: AmsHeader, data: Buffer } {
-    this.debugD("parseAmsHeader(): Starting to parse AMS header");
+    this.debugD?.("parseAmsHeader(): Starting to parse AMS header");
 
     let pos = 0;
     const ams = {} as AmsHeader;
 
     if (data.byteLength < ADS.AMS_HEADER_LENGTH) {
-      this.debugD("parseAmsHeader(): No AMS header found");
+      this.debugD?.("parseAmsHeader(): No AMS header found");
       return { ams, data };
     }
 
@@ -1562,7 +1555,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (ams.error) {
       ams.errorStr = ADS.ADS_ERROR[ams.errorCode as keyof typeof ADS.ADS_ERROR];
     }
-    this.debugD("parseAmsHeader(): AMS header parsed: %o", ams);
+    this.debugD?.("parseAmsHeader(): AMS header parsed: %o", ams);
 
     return { ams, data };
   }
@@ -1575,10 +1568,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
   * @param data Buffer that contains data for a single ADS packet (without AMS/TCP header and AMS header)
   */
   private parseAdsResponse(packet: AmsTcpPacket, data: Buffer): AdsResponse {
-    this.debugD("parseAdsResponse(): Starting to parse ADS data");
+    this.debugD?.("parseAdsResponse(): Starting to parse ADS data");
 
     if (data.byteLength === 0) {
-      this.debugD("parseAdsData(): Packet has no ADS data");
+      this.debugD?.("parseAdsData(): Packet has no ADS data");
       return {} as AdsResponse;
     }
 
@@ -1727,10 +1720,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         break;
     }
 
-    this.debugD(`parseAdsResponse(): ADS data parsed: %o`, ads);
+    this.debugD?.(`parseAdsResponse(): ADS data parsed: %o`, ads);
 
     if (ads === undefined) {
-      this.debug(`parseAdsData(): Unknown ads response received: ${packet.ams.adsCommand}`);
+      this.debug?.(`parseAdsData(): Unknown ads response received: ${packet.ams.adsCommand}`);
 
       ads = {
         error: true,
@@ -1753,7 +1746,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param packet Fully parsed AMS/TCP packet, includes AMS/TCP header and if available, also AMS header and ADS data
    */
   private onAmsTcpPacketReceived(packet: AmsTcpPacket<AdsResponse>) {
-    this.debugD(`onAmsTcpPacketReceived(): AMS packet received with command ${packet.amsTcp.command}`);
+    this.debugD?.(`onAmsTcpPacketReceived(): AMS packet received with command ${packet.amsTcp.command}`);
 
     switch (packet.amsTcp.command) {
       //ADS command
@@ -1765,7 +1758,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
           this.onAdsCommandReceived(packet);
         } else {
-          this.debug(`Received ADS command but it's not for us (target: ${ADS.amsAddressToString(packet.ams.targetAmsAddress)})`);
+          this.debug?.(`Received ADS command but it's not for us (target: ${ADS.amsAddressToString(packet.ams.targetAmsAddress)})`);
         }
         break;
 
@@ -1775,7 +1768,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         if (this.amsTcpCallback) {
           this.amsTcpCallback(packet);
         } else {
-          this.debug(`onAmsTcpPacketReceived(): Port unregister response received but no callback was assigned (${packet.amsTcp.commandStr})`);
+          this.debug?.(`onAmsTcpPacketReceived(): Port unregister response received but no callback was assigned (${packet.amsTcp.commandStr})`);
         }
         break;
 
@@ -1796,10 +1789,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
           if (this.amsTcpCallback) {
             this.amsTcpCallback(packet);
           } else {
-            this.debug(`onAmsTcpPacketReceived(): Port register response received but no callback was assigned (${packet.amsTcp.commandStr})`);
+            this.debug?.(`onAmsTcpPacketReceived(): Port register response received but no callback was assigned (${packet.amsTcp.commandStr})`);
           }
         } else {
-          this.debugD("onAmsTcpPacketReceived(): Received amsTcp data of unknown type");
+          this.debugD?.("onAmsTcpPacketReceived(): Received amsTcp data of unknown type");
         }
         break;
 
@@ -1817,7 +1810,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           this.onRouterStateChanged(data);
 
         } else {
-          this.debugD("onAmsTcpPacketReceived(): Received amsTcp data of unknown type");
+          this.debugD?.("onAmsTcpPacketReceived(): Received amsTcp data of unknown type");
         }
         break;
 
@@ -1829,7 +1822,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       default:
         packet.amsTcp.commandStr = `Unknown command ${packet.amsTcp.command}`;
-        this.debug(`onAmsTcpPacketReceived(): Unknown AMS/TCP command received: "${packet.amsTcp.command}"`);
+        this.debug?.(`onAmsTcpPacketReceived(): Unknown AMS/TCP command received: "${packet.amsTcp.command}"`);
         break;
     }
   }
@@ -1840,7 +1833,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param packet Fully parsed AMS/TCP packet, includes AMS/TCP header, AMS header and ADS data
    */
   private onAdsCommandReceived(packet: AmsTcpPacket<AdsResponse>) {
-    this.debugD(`onAdsCommandReceived(): ADS command received (command: ${packet.ams.adsCommand})`);
+    this.debugD?.(`onAdsCommandReceived(): ADS command received (command: ${packet.ams.adsCommand})`);
 
     switch (packet.ams.adsCommand) {
       //ADS notification
@@ -1854,7 +1847,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
             const subscription = this.activeSubscriptions[key]?.[sample.notificationHandle];
 
             if (subscription) {
-              this.debug(`onAdsCommandReceived(): Notification received from ${key} for handle ${sample.notificationHandle} (%o)`, subscription.settings.target)
+              this.debug?.(`onAdsCommandReceived(): Notification received from ${key} for handle ${sample.notificationHandle} (%o)`, subscription.settings.target)
 
               subscription.parseNotification(sample.payload, stamp.timestamp)
                 .then(data => {
@@ -1863,29 +1856,29 @@ export class Client extends EventEmitter<AdsClientEvents> {
                   try {
                     subscription.settings.callback && subscription.settings.callback(subscription.latestData, subscription);
                   } catch (err) {
-                    this.debug(`onAdsCommandReceived(): Calling user callback for notification failed: %o`, err);
+                    this.debug?.(`onAdsCommandReceived(): Calling user callback for notification failed: %o`, err);
                   }
                 })
                 .catch(err => {
-                  this.debug(`onAdsCommandReceived(): Notification received but parsing Javascript object failed: %o`, err);
+                  this.debug?.(`onAdsCommandReceived(): Notification received but parsing Javascript object failed: %o`, err);
                   this.emit('client-error', new ClientError(`An ADS notification received but parsing data to a Javascript object failed. Subscription: ${JSON.stringify(subscription)}`, err));
                 });
 
             } else if (this.settings.deleteUnknownSubscriptions) {
-              this.debug(`onAdsCommandReceived(): An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key}. Trying to delete it to save resources (deleteUnknownSubscriptions is set).`);
+              this.debug?.(`onAdsCommandReceived(): An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key}. Trying to delete it to save resources (deleteUnknownSubscriptions is set).`);
 
               this.deleteNotificationHandle(sample.notificationHandle, packet.ams.sourceAmsAddress)
                 .then(() => {
-                  this.debug(`onAdsCommandReceived(): An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key} and automatically deleted`);
+                  this.debug?.(`onAdsCommandReceived(): An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key} and automatically deleted`);
                   this.warn(`An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key} and automatically deleted`);
                 })
                 .catch(err => {
-                  this.debug(`onAdsCommandReceived(): Failed to delete an unknown ADS notification handle ${sample.notificationHandle} (from ${key}): %o`, err);
+                  this.debug?.(`onAdsCommandReceived(): Failed to delete an unknown ADS notification handle ${sample.notificationHandle} (from ${key}): %o`, err);
                   this.emit('client-error', new ClientError(`Failed to delete an unknown ADS notification handle ${sample.notificationHandle} (from ${key})`, err));
                 });
 
             } else {
-              this.debug(`onAdsCommandReceived(): Notification received with unknown handle ${sample.notificationHandle} (${key})`);
+              this.debug?.(`onAdsCommandReceived(): Notification received with unknown handle ${sample.notificationHandle} (${key})`);
               this.warn(`An ADS notification with an unknown handle ${sample.notificationHandle} was received from ${key}. Use unsubscribe() or deleteUnknownSubscriptions setting to save resources.`);
             }
           }
@@ -1902,7 +1895,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           request.responseCallback(packet);
 
         } else {
-          this.debugD(`onAdsCommandReceived(): Ads command received with unknown invokeId "${packet.ams.invokeId}"`);
+          this.debugD?.(`onAdsCommandReceived(): Ads command received with unknown invokeId "${packet.ams.invokeId}"`);
           this.emit('client-error', new ClientError(`Ads command received with unknown invokeId "${packet.ams.invokeId}"`));
         }
         break;
@@ -1930,7 +1923,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       stateStr: ADS.AMS_ROUTER_STATE.toString(state.routerState)
     };
 
-    this.debug(`onRouterStateChanged(): Local AMS router state has changed to ${this.metaData.routerState.stateStr}`);
+    this.debug?.(`onRouterStateChanged(): Local AMS router state has changed to ${this.metaData.routerState.stateStr}`);
     this.emit("routerStateChange", this.metaData.routerState, oldState);
 
     //If we have a local connection, connection needs to be reinitialized
@@ -1938,7 +1931,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //We should stop polling TwinCAT system state, the poller will be reinitialized later
       this.clearTimer(this.tcSystemStatePollerTimer);
 
-      this.debug("onRouterStateChanged(): Local loopback connection active, monitoring router state. Reconnecting when router is back running.");
+      this.debug?.("onRouterStateChanged(): Local loopback connection active, monitoring router state. Reconnecting when router is back running.");
 
       if (this.metaData.routerState.state === ADS.AMS_ROUTER_STATE.START) {
         this.warn(`Local AMS router state has changed to ${this.metaData.routerState.stateStr}. Reconnecting...`);
@@ -2016,7 +2009,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param targetOpts Optional target settings that override values in `settings` (**NOTE:** If used, no caching is available -> possible performance impact)
    */
   private async addSubscription<T = any>(settings: SubscriptionSettings<T>, internal: boolean, targetOpts: Partial<AmsAddress> = {}): Promise<ActiveSubscription<T>> {
-    this.debugD(`addSubscription(): Subscribing %o (internal: ${internal})`, settings);
+    this.debugD?.(`addSubscription(): Subscribing %o (internal: ${internal})`, settings);
 
     let targetAddress = {} as AdsRawAddress;
     let symbol: AdsSymbol | undefined = undefined;
@@ -2089,7 +2082,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debugD(`addSubscription(): Subscribed to %o`, settings.target);
+      this.debugD?.(`addSubscription(): Subscribed to %o`, settings.target);
 
       const clientRef = this;
 
@@ -2132,7 +2125,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return subscription;
 
     } catch (err) {
-      this.debug(`addSubscription(): Subscribing to %o failed: %o`, settings.target, err);
+      this.debug?.(`addSubscription(): Subscribing to %o failed: %o`, settings.target, err);
       throw new ClientError(`addSubscription(): Subscribing to ${JSON.stringify(settings.target)} failed`, err);
     }
   }
@@ -2148,7 +2141,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`removeSubscriptions(): Unsubscribing from all active subscriptions (also internals: ${internals})`);
+      this.debug?.(`removeSubscriptions(): Unsubscribing from all active subscriptions (also internals: ${internals})`);
 
       let successCount = 0;
       let errorCount = 0;
@@ -2172,14 +2165,14 @@ export class Client extends EventEmitter<AdsClientEvents> {
       }
 
       if (errorCount === 0) {
-        this.debug(`removeSubscriptions(): Unsubscribed from all ${successCount} subscriptions successfully`);
+        this.debug?.(`removeSubscriptions(): Unsubscribed from all ${successCount} subscriptions successfully`);
       } else {
-        this.debug(`removeSubscriptions(): Unsubscribed from ${successCount} subscriptions, failed to unsubscribe from ${errorCount} subscriptions`);
+        this.debug?.(`removeSubscriptions(): Unsubscribed from ${successCount} subscriptions, failed to unsubscribe from ${errorCount} subscriptions`);
         throw error;
       }
 
     } catch (err) {
-      this.debug(`removeSubscriptions(): Unsubscribing all failed - some subscriptions were not unsubscribed: %o`, err);
+      this.debug?.(`removeSubscriptions(): Unsubscribing all failed - some subscriptions were not unsubscribed: %o`, err);
       throw new ClientError(`removeSubscriptions(): Unsubscribing all failed - some subscriptions were not unsubscribed`, err);
     }
   }
@@ -2223,11 +2216,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
       try {
         await this.unsubscribeAll();
       } catch (err) {
-        this.debug(`backupSubscriptions(): Unsubscribing existing subscriptions failed. Error: %o`, err);
+        this.debug?.(`backupSubscriptions(): Unsubscribing existing subscriptions failed. Error: %o`, err);
       }
     }
 
-    this.debug(`backupSubscriptions(): Total of ${count} subcriptions backupped for restoring`);
+    this.debug?.(`backupSubscriptions(): Total of ${count} subcriptions backupped for restoring`);
 
     return count;
   }
@@ -2244,11 +2237,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
     let successCount = 0;
 
     if (!this.previousSubscriptions) {
-      this.debug(`restoreSubscriptions(): No previous subscriptions to restore`);
+      this.debug?.(`restoreSubscriptions(): No previous subscriptions to restore`);
       return failedTargets;
     }
 
-    this.debug(`restoreSubscriptions(): Starting to restore previously saved subscriptions`);
+    this.debug?.(`restoreSubscriptions(): Starting to restore previously saved subscriptions`);
 
     for (const targetName in this.previousSubscriptions) {
       for (const subscriptionHandle in this.previousSubscriptions[targetName]) {
@@ -2268,13 +2261,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
             ? subscription.settings.target
             : JSON.stringify(subscription.settings.target);
 
-          this.debug(`restoreSubscriptions(): Subscribing existing subscription ${target} failed. Error: %o`, err)
+          this.debug?.(`restoreSubscriptions(): Subscribing existing subscription ${target} failed. Error: %o`, err)
           failedTargets.push(target);
         }
       }
     }
     this.previousSubscriptions = undefined;
-    this.debug(`restoreSubscriptions(): Restored ${successCount}/${totalCount} subscriptions`);
+    this.debug?.(`restoreSubscriptions(): Restored ${successCount}/${totalCount} subscriptions`);
 
     return failedTargets;
   }
@@ -2285,7 +2278,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param data Data containing ADS symbol (without first 4 bytes of ADS payload containing entry length)
    */
   private parseAdsResponseSymbol(data: Buffer): AdsSymbol {
-    this.debugD(`parseAdsResponseSymbol(): Parsing symbol from data (${data.byteLength} bytes)`);
+    this.debugD?.(`parseAdsResponseSymbol(): Parsing symbol from data (${data.byteLength} bytes)`);
 
     const symbol = {} as AdsSymbol;
     let pos = 0;
@@ -2406,7 +2399,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //Reserved, if any
     symbol.reserved = data.subarray(pos);
 
-    this.debugD(`parseAdsResponseSymbol(): Symbol parsed for ${symbol.name} (${symbol.type})`);
+    this.debugD?.(`parseAdsResponseSymbol(): Symbol parsed for ${symbol.name} (${symbol.type})`);
     return symbol;
   }
 
@@ -2416,7 +2409,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param data Data containing data type declaration (without first 4 bytes of ADS payload containing entry length)
    */
   private parseAdsResponseDataType(data: Buffer): AdsDataType {
-    this.debugD(`parseAdsResponseDataType(): Parsing data type from ADS response (${data.byteLength} bytes)`);
+    this.debugD?.(`parseAdsResponseDataType(): Parsing data type from ADS response (${data.byteLength} bytes)`);
 
     let pos = 0;
     const dataType = {} as AdsDataType;
@@ -2835,7 +2828,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //Reserved, if any
     dataType.reserved = data.subarray(pos);
 
-    this.debugD(`parseAdsResponseDataType(): Data type parsed (result: ${dataType.name})`);
+    this.debugD?.(`parseAdsResponseDataType(): Data type parsed (result: ${dataType.name})`);
 
     return dataType;
   }
@@ -2858,7 +2851,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @param targetOpts Optional target settings that override values in `settings` (**NOTE:** If used, no caching is available -> possible performance impact)
    */
   private async getDataTypeDeclaration(name: string, targetOpts: Partial<AmsAddress> = {}): Promise<AdsDataType> {
-    this.debug(`getDataTypeDeclaration(): Data type declaration requested for ${name}`);
+    this.debug?.(`getDataTypeDeclaration(): Data type declaration requested for ${name}`);
 
     //Is this data type already cached? Skip check if we have different target
     if (!this.settings.disableCaching
@@ -2866,12 +2859,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       && !targetOpts.amsNetId
       && this.metaData.plcDataTypes[name.toLowerCase()]) {
 
-      this.debug(`getDataTypeDeclaration(): Data type declaration found from cache for ${name}`);
+      this.debug?.(`getDataTypeDeclaration(): Data type declaration found from cache for ${name}`);
       return this.metaData.plcDataTypes[name.toLowerCase()];
     }
 
     //Reading from target
-    this.debug(`getDataTypeDeclaration(): Data type declaration for ${name} not cached, reading from target`);
+    this.debug?.(`getDataTypeDeclaration(): Data type declaration for ${name} not cached, reading from target`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + name.length + 1);
@@ -2912,12 +2905,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       if (!this.settings.disableCaching && !targetOpts.adsPort && !targetOpts.amsNetId) {
         this.metaData.plcDataTypes[name.toLowerCase()] = dataType;
       }
-      this.debug(`getDataTypeDeclaration(): Data type declaration read and parsed for ${name}`);
+      this.debug?.(`getDataTypeDeclaration(): Data type declaration read and parsed for ${name}`);
 
       return dataType;
 
     } catch (err) {
-      this.debug(`getDataTypeDeclaration(): Reading data type declaration for ${name} failed: %o`, err);
+      this.debug?.(`getDataTypeDeclaration(): Reading data type declaration for ${name} failed: %o`, err);
       throw new ClientError(`getDataTypeDeclaration(): Reading data type declaration for ${name} failed`, err);
     }
   }
@@ -2939,7 +2932,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    */
   private async buildDataType(name: string, targetOpts: Partial<AmsAddress> = {}, isRootType = true, knownSize?: number): Promise<AdsDataType> {
     try {
-      this.debug(`buildDataType(): Building data type for ${name}`);
+      this.debug?.(`buildDataType(): Building data type for ${name}`);
 
       let dataType: AdsDataType | undefined;
 
@@ -3105,7 +3098,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return builtType;
 
     } catch (err) {
-      this.debug(`buildDataType(): Building data type for ${name} failed: %o`, err);
+      this.debug?.(`buildDataType(): Building data type for ${name} failed: %o`, err);
       throw new ClientError(`buildDataType(): Building data type for ${name} failed`, err);
     }
   }
@@ -3553,11 +3546,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const res = await client.connect();
-   * 
-   *  console.log(`Connected to the ${res.targetAmsNetId}`);
-   *  console.log(`Router assigned us AmsNetId ${res.localAmsNetId} and port ${res.localAdsPort}`);
+   *
+   *  consol?.(`Connected to the ${res.targetAmsNetId}`);
+   *  consol?.(`Router assigned us AmsNetId ${res.localAmsNetId} and port ${res.localAdsPort}`);
    * } catch (err) {
-   *  console.log("Connecting failed:", err);
+   *  consol?.("Connecting failed:", err);
    * }
    * ```
    */
@@ -3581,9 +3574,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const res = await client.disconnect();
-   *  console.log("Disconnected");
+   *  consol?.("Disconnected");
    * } catch (err) {
-   *  console.log("Disconnected with error:", err);
+   *  consol?.("Disconnected with error:", err);
    * }
    * ```
    */
@@ -3621,11 +3614,26 @@ export class Client extends EventEmitter<AdsClientEvents> {
   setDebugLevel(level: DebugLevel): void {
     this.debugLevel_ = level;
 
-    this.debug.enabled = level >= 1;
-    this.debugD.enabled = level >= 2;
-    this.debugIO.enabled = level >= 3;
+    if (level < 1) {
+      this.debug = undefined
+    } else if (!this.debug) {
+      this.debug = Debug("ads-client");
+      this.debug.enabled = true;
+    }
+    if (level < 2) {
+      this.debugD = undefined
+    } else if (! this.debugD) {
+      this.debugD = Debug(`ads-client:details`);
+      this.debugD.enabled = true;
+    }
+    if (level < 3) {
+      this.debugIO = undefined
+    } else if (! this.debugIO) {
+      this.debugIO = Debug(`ads-client:raw-data`);
+      this.debugIO.enabled = true;
+    }
 
-    this.debug(`setDebugLevel(): Debug level set to ${level}`);
+    this.debug?.(`setDebugLevel(): Debug level set to ${level}`);
   }
 
   /**
@@ -3669,11 +3677,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *    targetAdsPort: targetOpts.adsPort,
    *    payload: data
    *  });
-   * 
-   *  console.log(res.ads.payload); //<Buffer ff 7f>
+   *
+   *  consol?.(res.ads.payload); //<Buffer ff 7f>
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -3720,7 +3728,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         packet.ams.targetAmsAddress.amsNetId = '127.0.0.1.1.1';
       }
 
-      this.debugD(`sendAdsCommand(): Sending an ads command ${packet.ams.adsCommandStr} (${packet.ams.dataLength} bytes): %o`, packet);
+      this.debugD?.(`sendAdsCommand(): Sending an ads command ${packet.ams.adsCommandStr} (${packet.ams.dataLength} bytes): %o`, packet);
 
       //Creating a full AMS/TCP request
       try {
@@ -3733,7 +3741,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       this.activeAdsRequests[packet.ams.invokeId] = {
         responseCallback: (res: AmsTcpPacket<AdsResponse>) => {
 
-          this.debugD(`sendAdsCommand(): Response received for command "${packet.ams.adsCommandStr}" with invokeId ${packet.ams.invokeId}`);
+          this.debugD?.(`sendAdsCommand(): Response received for command "${packet.ams.adsCommandStr}" with invokeId ${packet.ams.invokeId}`);
 
           //Callback is no longer needed, delete it
           delete this.activeAdsRequests[packet.ams.invokeId];
@@ -3747,7 +3755,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           return resolve(res as AmsTcpPacket<T>);
         },
         timeoutTimerHandle: setTimeout(() => {
-          this.debug(`sendAdsCommand(): Timeout for command ${packet.ams.adsCommandStr} with invokeId ${packet.ams.invokeId} - No response in ${this.settings.timeoutDelay} ms`);
+          this.debug?.(`sendAdsCommand(): Timeout for command ${packet.ams.adsCommandStr} with invokeId ${packet.ams.invokeId} - No response in ${this.settings.timeoutDelay} ms`);
 
           //Callback is no longer needed, delete it
           delete this.activeAdsRequests[packet.ams.invokeId];
@@ -3792,7 +3800,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //Set target (PLC) to run
    *  await client.writeControl("Run");
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    */
@@ -3812,7 +3820,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       adsState = ADS.ADS_STATE[key] as number;
     }
 
-    this.debug(`writeControl(): Sending an ADS Write Control command (adsState: ${adsState}, deviceState: ${deviceState}, data: ${data.byteLength} bytes) to ${this.targetToString(targetOpts)}`);
+    this.debug?.(`writeControl(): Sending an ADS Write Control command (adsState: ${adsState}, deviceState: ${deviceState}, data: ${data.byteLength} bytes) to ${this.targetToString(targetOpts)}`);
 
     //Allocating bytes for request
     const payload = Buffer.alloc(8 + data.byteLength);
@@ -3841,10 +3849,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload
       });
 
-      this.debug(`writeControl(): Write control command sent to ${this.targetToString(targetOpts)}`);
+      this.debug?.(`writeControl(): Write control command sent to ${this.targetToString(targetOpts)}`);
 
     } catch (err) {
-      this.debug(`writeControl(): Sending write control command to ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`writeControl(): Sending write control command to ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`writeControl(): Sending write control command to ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -3863,7 +3871,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.startPlc();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    */
@@ -3872,7 +3880,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`startPlc(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`startPlc(): Starting PLC runtime at ${this.targetToString(targetOpts)}`);
+    this.debug?.(`startPlc(): Starting PLC runtime at ${this.targetToString(targetOpts)}`);
 
     try {
       //Reading device state first as we don't want to change it (even though it's most probably 0)
@@ -3880,9 +3888,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       await this.writeControl("Run", state.deviceState, undefined, targetOpts);
 
-      this.debug(`startPlc(): PLC runtime started at ${this.targetToString(targetOpts)}`);
+      this.debug?.(`startPlc(): PLC runtime started at ${this.targetToString(targetOpts)}`);
     } catch (err) {
-      this.debug(`startPlc(): Starting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`startPlc(): Starting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`startPlc(): Starting PLC runtime at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -3899,7 +3907,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.resetPlc();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    */
@@ -3908,7 +3916,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`resetPlc(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`resetPlc(): Resetting PLC runtime at ${this.targetToString(targetOpts)}`);
+    this.debug?.(`resetPlc(): Resetting PLC runtime at ${this.targetToString(targetOpts)}`);
 
     try {
       //Reading device state first as we don't want to change it (even though it's most probably 0)
@@ -3916,9 +3924,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       await this.writeControl("Reset", state.deviceState, undefined, targetOpts);
 
-      this.debug(`resetPlc(): PLC runtime reset at ${this.targetToString(targetOpts)}`);
+      this.debug?.(`resetPlc(): PLC runtime reset at ${this.targetToString(targetOpts)}`);
     } catch (err) {
-      this.debug(`resetPlc(): Resetting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`resetPlc(): Resetting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`resetPlc(): Resetting PLC runtime at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -3935,7 +3943,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.stopPlc();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    */
@@ -3944,7 +3952,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`stopPlc(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`stopPlc(): Stopping PLC runtime at ${this.targetToString(targetOpts)}`);
+    this.debug?.(`stopPlc(): Stopping PLC runtime at ${this.targetToString(targetOpts)}`);
 
     try {
       //Reading device state first as we don't want to change it (even though it's most probably 0)
@@ -3952,9 +3960,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       await this.writeControl("Stop", state.deviceState, undefined, targetOpts);
 
-      this.debug(`stopPlc(): PLC runtime stopped at ${this.targetToString(targetOpts)}`);
+      this.debug?.(`stopPlc(): PLC runtime stopped at ${this.targetToString(targetOpts)}`);
     } catch (err) {
-      this.debug(`stopPlc(): Stopping PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`stopPlc(): Stopping PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`stopPlc(): Stopping PLC runtime at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -3969,7 +3977,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.restartPlc();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -3983,15 +3991,15 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`restartPlc(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`restartPlc(): Restarting PLC runtime at ${this.targetToString(targetOpts)}`);
+    this.debug?.(`restartPlc(): Restarting PLC runtime at ${this.targetToString(targetOpts)}`);
 
     try {
       await this.resetPlc(targetOpts);
       await this.startPlc(targetOpts);
 
-      this.debug(`restartPlc(): PLC runtime restarted at ${this.targetToString(targetOpts)}`);
+      this.debug?.(`restartPlc(): PLC runtime restarted at ${this.targetToString(targetOpts)}`);
     } catch (err) {
-      this.debug(`restartPlc(): Restarting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`restartPlc(): Restarting PLC runtime at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`restartPlc(): Restarting PLC runtime at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -4010,7 +4018,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //Don't reconnect the client
    *  await client.setTcSystemToRun(false);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4025,7 +4033,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`setTcSystemToRun(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`setTcSystemToRun(): Setting TwinCAT system to run mode (reconnect: ${reconnect})`);
+    this.debug?.(`setTcSystemToRun(): Setting TwinCAT system to run mode (reconnect: ${reconnect})`);
 
     try {
       //Reading device state first as we don't want to change it (even though it's most probably 0)
@@ -4033,16 +4041,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       await this.writeControl("Reset", state.deviceState, undefined, { adsPort: 10000, ...targetOpts });
 
-      this.debug(`setTcSystemToRun(): TwinCAT system at ${this.targetToString(targetOpts)} set to run mode`);
+      this.debug?.(`setTcSystemToRun(): TwinCAT system at ${this.targetToString(targetOpts)} set to run mode`);
 
       if (reconnect) {
-        this.debug(`setTcSystemToRun(): Reconnecting after TwinCAT system restart`);
+        this.debug?.(`setTcSystemToRun(): Reconnecting after TwinCAT system restart`);
         this.warn("Reconnecting after TwinCAT system restart");
         this.onConnectionLost();
       }
 
     } catch (err) {
-      this.debug(`setTcSystemToRun(): Setting TwinCAT system to run mode at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`setTcSystemToRun(): Setting TwinCAT system to run mode at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`setTcSystemToRun(): Setting TwinCAT system to run mode at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -4057,7 +4065,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.setTcSystemToConfig();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4071,7 +4079,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`setTcSystemToConfig(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`setTcSystemToConfig(): Setting TwinCAT system to config mode`);
+    this.debug?.(`setTcSystemToConfig(): Setting TwinCAT system to config mode`);
 
     try {
       //Reading device state first as we don't want to change it (even though it's most probably 0)
@@ -4079,10 +4087,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       await this.writeControl("Reconfig", state.deviceState, undefined, { adsPort: 10000, ...targetOpts });
 
-      this.debug(`setTcSystemToConfig(): TwinCAT system at ${this.targetToString(targetOpts)} set to config mode`);
+      this.debug?.(`setTcSystemToConfig(): TwinCAT system at ${this.targetToString(targetOpts)} set to config mode`);
 
     } catch (err) {
-      this.debug(`setTcSystemToConfig(): Setting TwinCAT system to config mode at ${this.targetToString(targetOpts)} failed: %o`, err);
+      this.debug?.(`setTcSystemToConfig(): Setting TwinCAT system to config mode at ${this.targetToString(targetOpts)} failed: %o`, err);
       throw new ClientError(`setTcSystemToConfig(): Setting TwinCAT system to config mode at ${this.targetToString(targetOpts)} failed`, err);
     }
   }
@@ -4103,7 +4111,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //Don't reconnect the client
    *  await client.restartTcSystem(false);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4118,9 +4126,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`restartTcSystem(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`restartTcSystem(): Restarting TwinCAT system (reconnect: ${reconnect})`);
+    this.debug?.(`restartTcSystem(): Restarting TwinCAT system (reconnect: ${reconnect})`);
     await this.setTcSystemToRun(reconnect, targetOpts);
-    this.debug(`restartTcSystem(): TwinCAT system was restarted`);
+    this.debug?.(`restartTcSystem(): TwinCAT system was restarted`);
   }
 
   /**
@@ -4140,7 +4148,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const symbol = await client.getSymbol('GVL_Read.StandardTypes.INT_');
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4155,7 +4163,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
     path = path.trim();
 
-    this.debug(`getSymbol(): Symbol requested for ${path}`);
+    this.debug?.(`getSymbol(): Symbol requested for ${path}`);
 
     //Is this symbol already cached? Skip check if we have different target
     if (!this.settings.disableCaching
@@ -4163,12 +4171,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       && !targetOpts.amsNetId
       && this.metaData.plcSymbols[path.toLowerCase()]) {
 
-      this.debug(`getSymbol(): Symbol found from cache for ${path}`);
+      this.debug?.(`getSymbol(): Symbol found from cache for ${path}`);
       return this.metaData.plcSymbols[path.toLowerCase()];
     }
 
     //Reading from target
-    this.debug(`getSymbol(): Symbol for ${path} not cached, reading from target`);
+    this.debug?.(`getSymbol(): Symbol for ${path} not cached, reading from target`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + path.length + 1);
@@ -4210,11 +4218,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
         this.metaData.plcSymbols[path.toLowerCase()] = symbol;
       }
 
-      this.debug(`getSymbol(): Symbol read and parsed for ${path}`);
+      this.debug?.(`getSymbol(): Symbol read and parsed for ${path}`);
       return symbol;
 
     } catch (err) {
-      this.debug(`getSymbol(): Reading symbol for ${path} failed: %o`, err);
+      this.debug?.(`getSymbol(): Reading symbol for ${path} failed: %o`, err);
       throw new ClientError(`getSymbol(): Reading symbol for ${path} failed`, err);
     }
   }
@@ -4236,7 +4244,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const dataType = await client.getDataType('ST_Struct');
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4251,9 +4259,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
     name = name.trim();
 
-    this.debug(`getDataType(): Data type requested for ${name}`);
+    this.debug?.(`getDataType(): Data type requested for ${name}`);
     const dataType = await this.buildDataType(name, targetOpts);
-    this.debug(`getDataType(): Data type read and built for ${name}`);
+    this.debug?.(`getDataType(): Data type read and built for ${name}`);
 
     return dataType;
 
@@ -4271,7 +4279,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const state = await client.readState();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4285,7 +4293,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`readState(): Reading target ADS state`);
+      this.debug?.(`readState(): Reading target ADS state`);
 
       const res = await this.sendAdsCommand<AdsReadStateResponse>({
         adsCommand: ADS.ADS_COMMAND.ReadState,
@@ -4293,12 +4301,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
         targetAdsPort: targetOpts.adsPort
       });
 
-      this.debug(`readState(): Target ADS state read successfully. State is %o`, res.ads.payload);
+      this.debug?.(`readState(): Target ADS state read successfully. State is %o`, res.ads.payload);
 
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readState(): Reading target ADS state failed: %o`, err);
+      this.debug?.(`readState(): Reading target ADS state failed: %o`, err);
       throw new ClientError(`readState(): Reading target ADS state failed`, err);
     }
   }
@@ -4319,7 +4327,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const plcState = await client.readPlcRuntimeState();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4333,7 +4341,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`readPlcRuntimeState(): Reading PLC runtime state`);
+      this.debug?.(`readPlcRuntimeState(): Reading PLC runtime state`);
 
       const res = await this.sendAdsCommand<AdsReadStateResponse>({
         adsCommand: ADS.ADS_COMMAND.ReadState,
@@ -4341,7 +4349,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         targetAdsPort: targetOpts.adsPort
       });
 
-      this.debug(`readPlcRuntimeState(): Runtime state read successfully. State is %o`, res.ads.payload);
+      this.debug?.(`readPlcRuntimeState(): Runtime state read successfully. State is %o`, res.ads.payload);
 
       if (!targetOpts.adsPort && !targetOpts.amsNetId) {
         //Target is not overridden -> save to metadata
@@ -4351,7 +4359,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readPlcRuntimeState(): Reading PLC runtime state failed: %o`, err);
+      this.debug?.(`readPlcRuntimeState(): Reading PLC runtime state failed: %o`, err);
       throw new ClientError(`readPlcRuntimeState(): Reading PLC runtime state failed`, err);
     }
   }
@@ -4370,7 +4378,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const tcSystemState = await client.readTcSystemState();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4384,7 +4392,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`readTcSystemState(): Reading TwinCAT system state`);
+      this.debug?.(`readTcSystemState(): Reading TwinCAT system state`);
 
       const res = await this.sendAdsCommand<AdsReadStateResponse>({
         adsCommand: ADS.ADS_COMMAND.ReadState,
@@ -4392,7 +4400,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         targetAdsPort: targetOpts.adsPort ?? ADS.ADS_RESERVED_PORTS.SystemService
       });
 
-      this.debug(`readTcSystemState(): TwinCAT system state read successfully. State is %o`, res.ads.payload);
+      this.debug?.(`readTcSystemState(): TwinCAT system state read successfully. State is %o`, res.ads.payload);
 
       if (!targetOpts.adsPort && !targetOpts.amsNetId) {
         //Target is not overridden -> save to metadata
@@ -4402,7 +4410,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readTcSystemState(): Reading TwinCAT system state failed: %o`, err);
+      this.debug?.(`readTcSystemState(): Reading TwinCAT system state failed: %o`, err);
       throw new ClientError(`readTcSystemState(): Reading TwinCAT system state failed`, err);
     }
   }
@@ -4426,7 +4434,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const symbolVersion = await client.readPlcSymbolVersion();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4440,12 +4448,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`readPlcSymbolVersion(): Reading PLC runtime symbol version`);
+      this.debug?.(`readPlcSymbolVersion(): Reading PLC runtime symbol version`);
 
       const res = await this.readRaw(ADS.ADS_RESERVED_INDEX_GROUPS.SymbolVersion, 0, 1);
       const symbolVersion = res.readUInt8(0);
 
-      this.debug(`readPlcSymbolVersion(): PLC runtime symbol version is now ${symbolVersion}`);
+      this.debug?.(`readPlcSymbolVersion(): PLC runtime symbol version is now ${symbolVersion}`);
 
       if (!targetOpts.adsPort && !targetOpts.amsNetId) {
         //Target is not overridden
@@ -4455,7 +4463,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return symbolVersion;
 
     } catch (err) {
-      this.debug(`readPlcSymbolVersion(): Reading PLC runtime symbol failed: %o`, err);
+      this.debug?.(`readPlcSymbolVersion(): Reading PLC runtime symbol failed: %o`, err);
       throw new ClientError(`readPlcSymbolVersion(): Reading PLC runtime symbol failed`, err);
     }
   }
@@ -4478,7 +4486,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * await client.subscribeValue(
    *  'GVL_Subscription.NumericValue_10ms',
    *  (data, subscription) => {
-   *   console.log(`Value of ${subscription.symbol.name} has changed: ${data.value}`);
+   *   consol?.(`Value of ${subscription.symbol.name} has changed: ${data.value}`);
    *  },
    *  100
    * );
@@ -4523,7 +4531,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`subscribeValue(): Subscribing to ${path}`);
+      this.debug?.(`subscribeValue(): Subscribing to ${path}`);
 
       return this.subscribe<T>({
         target: path,
@@ -4534,7 +4542,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       }, targetOpts);
 
     } catch (err) {
-      this.debug(`subscribeValue(): Subscribing to ${path} failed: %o`, err);
+      this.debug?.(`subscribeValue(): Subscribing to ${path} failed: %o`, err);
       throw new ClientError(`subscribeValue(): Subscribing to ${path} failed`, err);
     }
   }
@@ -4554,7 +4562,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * //Checks if value has changed every 100ms
    * //Callback is called only when the value has changed
    * await client.subscribeRaw(16448, 414816, 2, (data, subscription) => {
-   *   console.log(`Value has changed: ${data.value.toString('hex')}`);
+   *   consol?.(`Value has changed: ${data.value.toString('hex')}`);
    *  }, 100);
    * ```
    * 
@@ -4596,7 +4604,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`subscribeRaw(): Subscribing to ${JSON.stringify({ indexGroup, indexOffset, size })}`);
+      this.debug?.(`subscribeRaw(): Subscribing to ${JSON.stringify({ indexGroup, indexOffset, size })}`);
 
       return this.subscribe<Buffer>({
         target: {
@@ -4611,7 +4619,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       }, targetOpts);
 
     } catch (err) {
-      this.debug(`subscribeRaw(): Subscribing to ${JSON.stringify({ indexGroup, indexOffset, size })} failed: %o`, err);
+      this.debug?.(`subscribeRaw(): Subscribing to ${JSON.stringify({ indexGroup, indexOffset, size })} failed: %o`, err);
       throw new ClientError(`subscribeRaw(): Subscribing to ${JSON.stringify({ indexGroup, indexOffset, size })} failed`, err);
     }
   }
@@ -4632,7 +4640,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * await client.subscribe({
    *  target: 'GVL_Subscription.NumericValue_10ms',
    *  callback: (data, subscription) => {
-   *    console.log(`Value of ${subscription.symbol.name} has changed: ${data.value}`);
+   *    consol?.(`Value of ${subscription.symbol.name} has changed: ${data.value}`);
    *  },
    *  cycleTime: 100
    * });
@@ -4649,7 +4657,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *    size: 2
    *  },
    *  callback: (data, subscription) => {
-   *    console.log(`Value has changed: ${data.value}`);
+   *    consol?.(`Value has changed: ${data.value}`);
    *  },
    *  cycleTime: 100
    * });
@@ -4669,12 +4677,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`subscribe(): Subscribing to "%o"`, options.target);
+      this.debug?.(`subscribe(): Subscribing to "%o"`, options.target);
 
       return this.addSubscription<T>(options, false, targetOpts);
 
     } catch (err) {
-      this.debug(`subscribe(): Subscribing to "${options.target}" failed: %o`, err);
+      this.debug?.(`subscribe(): Subscribing to "${options.target}" failed: %o`, err);
       throw new ClientError(`subscribe(): Subscribing to "${options.target}" failed`, err);
     }
   }
@@ -4692,7 +4700,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.unsubscribe(sub);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4705,7 +4713,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`unsubscribe(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`unsubscribe(): Unsubscribing %o`, subscription);
+    this.debug?.(`unsubscribe(): Unsubscribing %o`, subscription);
 
     try {
       await this.deleteNotificationHandle(subscription.notificationHandle, subscription.remoteAddress)
@@ -4716,10 +4724,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         delete this.activeSubscriptions[address][subscription.notificationHandle];
       }
 
-      this.debug(`unsubscribe(): Subscription with handle ${subscription.notificationHandle} unsubscribed from ${address}`);
+      this.debug?.(`unsubscribe(): Subscription with handle ${subscription.notificationHandle} unsubscribed from ${address}`);
 
     } catch (err) {
-      this.debug(`unsubscribe(): Unsubscribing failed: %o`, err);
+      this.debug?.(`unsubscribe(): Unsubscribing failed: %o`, err);
       throw new ClientError(`unsubscribe(): Unsubscribing failed`, err);
     }
   }
@@ -4735,7 +4743,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * @throws NOTE: Throws error if failed
    */
   private async deleteNotificationHandle(notificationHandle: number, targetAmsAddress: AmsAddress): Promise<AdsDeleteNotificationResponse> {
-    this.debug(`deleteNotificationHandle(): Sending DeleteNotification command for handle ${notificationHandle} to ${ADS.amsAddressToString(targetAmsAddress)}`);
+    this.debug?.(`deleteNotificationHandle(): Sending DeleteNotification command for handle ${notificationHandle} to ${ADS.amsAddressToString(targetAmsAddress)}`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(4);
@@ -4752,7 +4760,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       payload: data
     });
 
-    this.debug(`deleteNotificationHandle(): Notification for handle ${notificationHandle} (${ADS.amsAddressToString(targetAmsAddress)}) deleted!`);
+    this.debug?.(`deleteNotificationHandle(): Notification for handle ${notificationHandle} (${ADS.amsAddressToString(targetAmsAddress)}) deleted!`);
 
     return res.ads;
   }
@@ -4771,7 +4779,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  await client.unsubscribeAll();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4783,14 +4791,14 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`unsubscribeAll(): Unsubscribing from all active subscriptions`);
+      this.debug?.(`unsubscribeAll(): Unsubscribing from all active subscriptions`);
 
       await this.removeSubscriptions(false);
 
-      this.debug(`unsubscribeAll(): All subscriptions unsubscribed successfully`);
+      this.debug?.(`unsubscribeAll(): All subscriptions unsubscribed successfully`);
 
     } catch (err) {
-      this.debug(`unsubscribeAll(): Unsubscribing all failed: %o`, err);
+      this.debug?.(`unsubscribeAll(): Unsubscribing all failed: %o`, err);
       throw new ClientError(`unsubscribeAll(): Unsubscribing all failed`, err);
     }
   }
@@ -4808,7 +4816,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const deviceInfo = await client.readDeviceInfo();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4822,7 +4830,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     try {
-      this.debug(`readDeviceInfo(): Reading device info`);
+      this.debug?.(`readDeviceInfo(): Reading device info`);
 
       const res = await this.sendAdsCommand<AdsReadDeviceInfoResponse>({
         adsCommand: ADS.ADS_COMMAND.ReadDeviceInfo,
@@ -4830,7 +4838,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         targetAdsPort: targetOpts.adsPort
       });
 
-      this.debug(`readDeviceInfo(): Device info read successfully. Device is %o`, res.ads.payload);
+      this.debug?.(`readDeviceInfo(): Device info read successfully. Device is %o`, res.ads.payload);
 
       if (!targetOpts.adsPort && !targetOpts.amsNetId) {
         //Target is not overridden -> save to metadata
@@ -4840,7 +4848,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readDeviceInfo(): Reading device info failed: %o`, err);
+      this.debug?.(`readDeviceInfo(): Reading device info failed: %o`, err);
       throw new ClientError(`readDeviceInfo():Reading device info failed`, err);
     }
   }
@@ -4860,7 +4868,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const uploadInfo = await client.readPlcUploadInfo();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4873,7 +4881,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`readPlcUploadInfo(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`readPlcUploadInfo(): Reading upload info`);
+    this.debug?.(`readPlcUploadInfo(): Reading upload info`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(12);
@@ -4933,11 +4941,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
         this.metaData.plcUploadInfo = uploadInfo;
       }
 
-      this.debug(`readPlcUploadInfo(): Upload info read and parsed for ${ADS.amsAddressToString(res.ams.sourceAmsAddress)}`);
+      this.debug?.(`readPlcUploadInfo(): Upload info read and parsed for ${ADS.amsAddressToString(res.ams.sourceAmsAddress)}`);
       return uploadInfo;
 
     } catch (err) {
-      this.debug(`readPlcUploadInfo(): Reading upload info failed: %o`, err);
+      this.debug?.(`readPlcUploadInfo(): Reading upload info failed: %o`, err);
       throw new ClientError(`readPlcUploadInfo(): Reading upload info failed`, err);
     }
   }
@@ -4957,7 +4965,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * try {
    *  const symbols = await client.getSymbols();
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -4969,16 +4977,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`getSymbols(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`getSymbols(): Reading symbol`);
+    this.debug?.(`getSymbols(): Reading symbol`);
 
     let uploadInfo: AdsUploadInfo;
     try {
-      this.debug(`getSymbols(): Updating upload info (needed for symbol reading)`)
+      this.debug?.(`getSymbols(): Updating upload info (needed for symbol reading)`)
 
       uploadInfo = await this.readPlcUploadInfo(targetOpts);
 
     } catch (err) {
-      this.debug(`getSymbols(): Reading upload info failed`)
+      this.debug?.(`getSymbols(): Reading upload info failed`)
       throw new ClientError(`getSymbols(): Reading upload info failed`, err);
     }
 
@@ -5029,16 +5037,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
         //Target is not overridden -> save to metadata
         this.metaData.plcSymbols = symbols;
         this.metaData.allPlcSymbolsCached = true;
-        this.debug(`getSymbols(): All symbols read and cached (symbol count ${count})`);
+        this.debug?.(`getSymbols(): All symbols read and cached (symbol count ${count})`);
 
       } else {
-        this.debug(`getSymbols(): All symbols read (symbol count ${count})`);
+        this.debug?.(`getSymbols(): All symbols read (symbol count ${count})`);
       }
 
       return symbols;
 
     } catch (err) {
-      this.debug(`getSymbols(): Reading symbols failed: %o`, err);
+      this.debug?.(`getSymbols(): Reading symbols failed: %o`, err);
       throw new ClientError(`getSymbols(): Reading symbols failed`, err);
     }
   }
@@ -5061,7 +5069,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  await client.cacheSymbols();
    *  //client.metaData.plcSymbols now has all PLC runtime symbols
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5069,19 +5077,19 @@ export class Client extends EventEmitter<AdsClientEvents> {
    */
   public async cacheSymbols() {
     if (this.settings.disableCaching) {
-      this.debug(`cacheSymbols(): Caching is disabled, doing nothing`);
+      this.debug?.(`cacheSymbols(): Caching is disabled, doing nothing`);
       return;
     }
 
-    this.debug(`cacheSymbols(): Caching all symbols`);
+    this.debug?.(`cacheSymbols(): Caching all symbols`);
 
     try {
       await this.getSymbols();
 
-      this.debug(`cacheSymbols(): All symbols are now cached`);
+      this.debug?.(`cacheSymbols(): All symbols are now cached`);
 
     } catch (err) {
-      this.debug(`cacheSymbols(): Caching symbols failed: %o`, err);
+      this.debug?.(`cacheSymbols(): Caching symbols failed: %o`, err);
       throw new ClientError(`cacheSymbols(): Caching symbols failed`, err);
     }
   }
@@ -5105,7 +5113,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //with built data types
    *  const fullDataTypes = await client.getDataTypes(true);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5118,16 +5126,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`getDataTypes(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`getDataTypes(): Reading data types`);
+    this.debug?.(`getDataTypes(): Reading data types`);
 
     let uploadInfo: AdsUploadInfo;
     try {
-      this.debug(`getDataTypes(): Updating upload info (needed for data type reading)`)
+      this.debug?.(`getDataTypes(): Updating upload info (needed for data type reading)`)
 
       uploadInfo = await this.readPlcUploadInfo(targetOpts);
 
     } catch (err) {
-      this.debug(`getDataTypes(): Reading upload info failed`)
+      this.debug?.(`getDataTypes(): Reading upload info failed`)
       throw new ClientError(`getDataTypes(): Reading upload info failed`, err);
     }
 
@@ -5177,14 +5185,14 @@ export class Client extends EventEmitter<AdsClientEvents> {
         //Target is not overridden -> save to metadata
         this.metaData.plcDataTypes = { ...dataTypes };
         this.metaData.allPlcDataTypesCached = true;
-        this.debug(`getDataTypes(): All data types read and cached (data type count ${count})`);
+        this.debug?.(`getDataTypes(): All data types read and cached (data type count ${count})`);
 
       } else {
-        this.debug(`getDataTypes(): All symbols read (data type count ${count})`);
+        this.debug?.(`getDataTypes(): All symbols read (data type count ${count})`);
       }
 
       if (buildFullTypes) {
-        this.debug(`getDataTypes(): Building all data types (buildFullTypes set)`);
+        this.debug?.(`getDataTypes(): Building all data types (buildFullTypes set)`);
 
         for (let dataType in dataTypes) {
           dataTypes[dataType] = await this.getDataType(dataType);
@@ -5194,7 +5202,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return dataTypes;
 
     } catch (err) {
-      this.debug(`getDataTypes(): Reading data type information failed: %o`, err);
+      this.debug?.(`getDataTypes(): Reading data type information failed: %o`, err);
       throw new ClientError(`getDataTypes(): Reading data type information failed`, err);
     }
   }
@@ -5217,22 +5225,22 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  await client.cacheDataTypes();
    *  //client.metaData.plcDataTypes now has all PLC runtime data types
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
    * @throws Throws an error if sending the command fails or if the target responds with an error.
    */
   public async cacheDataTypes() {
-    this.debug(`cacheDataTypes(): Caching all data types`);
+    this.debug?.(`cacheDataTypes(): Caching all data types`);
 
     try {
       await this.getDataTypes();
 
-      this.debug(`cacheDataTypes(): All data types are now cached`);
+      this.debug?.(`cacheDataTypes(): All data types are now cached`);
 
     } catch (err) {
-      this.debug(`cacheDataTypes(): Caching data types failed: %o`, err);
+      this.debug?.(`cacheDataTypes(): Caching data types failed: %o`, err);
       throw new ClientError(`cacheDataTypes(): Caching data types failed`, err);
     }
   }
@@ -5246,13 +5254,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.readRaw(16448, 414816, 2);
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    *  const converted = await client.convertFromRaw(data, 'INT');
-   *  console.log(converted); //32767
+   *  consol?.(converted); //32767
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5267,7 +5275,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`readRaw(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })})`);
+    this.debug?.(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })})`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(12);
@@ -5293,11 +5301,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })}) done (${res.ads.length} bytes)`);
+      this.debug?.(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })}) done (${res.ads.length} bytes)`);
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })}) failed: %o`, err);
+      this.debug?.(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })}) failed: %o`, err);
       throw new ClientError(`readRaw(): Reading raw data (${JSON.stringify({ indexGroup, indexOffset, size })}) failed`, err);
     }
   }
@@ -5311,11 +5319,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.convertToRaw(32767, 'INT');
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    *  await client.writeRaw(16448, 414816, data);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    *  
@@ -5330,7 +5338,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`writeRaw(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`readRaw(): Writing raw data to ${JSON.stringify({ indexGroup, indexOffset })} (${value.byteLength} bytes)`);
+    this.debug?.(`readRaw(): Writing raw data to ${JSON.stringify({ indexGroup, indexOffset })} (${value.byteLength} bytes)`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(12 + value.byteLength);
@@ -5359,10 +5367,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`writeRaw(): Writing raw data (${JSON.stringify({ indexGroup, indexOffset })}) done (${value.byteLength} bytes)`);
+      this.debug?.(`writeRaw(): Writing raw data (${JSON.stringify({ indexGroup, indexOffset })}) done (${value.byteLength} bytes)`);
 
     } catch (err) {
-      this.debug(`writeRaw(): Writing raw data (${JSON.stringify({ indexGroup, indexOffset })}) failed: %o`, err);
+      this.debug?.(`writeRaw(): Writing raw data (${JSON.stringify({ indexGroup, indexOffset })}) failed: %o`, err);
       throw new ClientError(`writeRaw(): Writing raw data (${JSON.stringify({ indexGroup, indexOffset })}) failed`, err);
     }
   }
@@ -5393,13 +5401,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  ]);
    *  
    *  if(results[0].success) {
-   *    console.log(`First result: ${results[0].value}`); //First result: <Buffer ff 7f>
+   *    consol?.(`First result: ${results[0].value}`); //First result: <Buffer ff 7f>
    *  } else {
-   *    console.log(`First read command failed: ${results[0].errorStr}`);
+   *    consol?.(`First read command failed: ${results[0].errorStr}`);
    *  }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5412,7 +5420,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`readRawMulti(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`readRawMulti(): Sending ${commands.length} read commands`);
+    this.debug?.(`readRawMulti(): Sending ${commands.length} read commands`);
     const totalSize = commands.reduce((total, command) => total + command.size, 0);
 
     //Allocating bytes for request
@@ -5458,7 +5466,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`readRawMulti(): Sending ${commands.length} read commands done (${res.ads.length} bytes)`);
+      this.debug?.(`readRawMulti(): Sending ${commands.length} read commands done (${res.ads.length} bytes)`);
 
       let pos = 0;
       const response = res.ads.payload;
@@ -5493,7 +5501,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return results;
 
     } catch (err) {
-      this.debug(`readRawMulti(): Sending ${commands.length} read commands failed: %o`, err);
+      this.debug?.(`readRawMulti(): Sending ${commands.length} read commands failed: %o`, err);
       throw new ClientError(`readRawMulti(): Sending ${commands.length} read commands failed`, err);
     }
   }
@@ -5511,7 +5519,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data1 = await client.convertToRaw(32767, 'INT');
-   *  console.log(data1); //<Buffer ff 7f>
+   *  consol?.(data1); //<Buffer ff 7f>
    * 
    *  const data2 = Buffer.alloc(128); //example
    * 
@@ -5529,13 +5537,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  ]);
    *  
    *  if(results[0].success) {
-   *    console.log(`First write command successful`); 
+   *    consol?.(`First write command successful`);
    *  } else {
-   *    console.log(`First write command failed: ${results[0].errorStr}`);
+   *    consol?.(`First write command failed: ${results[0].errorStr}`);
    *  }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5548,7 +5556,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`writeRawMulti(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`writeRawMulti(): Sending ${commands.length} write commands`);
+    this.debug?.(`writeRawMulti(): Sending ${commands.length} write commands`);
     const totalSize = commands.reduce((total, command) => total + (command.size ?? command.value.byteLength), 0);
 
     //Allocating bytes for request
@@ -5600,7 +5608,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`writeRawMulti(): Sending ${commands.length} write commands done`);
+      this.debug?.(`writeRawMulti(): Sending ${commands.length} write commands done`);
 
       let pos = 0;
       let results: WriteRawMultiResult[] = [];
@@ -5624,7 +5632,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return results;
 
     } catch (err) {
-      this.debug(`writeRawMulti(): Sending ${commands.length} write commands failed: %o`, err);
+      this.debug?.(`writeRawMulti(): Sending ${commands.length} write commands failed: %o`, err);
       throw new ClientError(`writeRawMulti(): Sending ${commands.length} write commands failed`, err);
     }
   }
@@ -5641,10 +5649,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.readRawByPath('GVL_Read.StandardTypes.INT_');
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    *  const converted = await client.convertFromRaw(data, 'INT');
-   *  console.log(converted); //32767
+   *  consol?.(converted); //32767
    * 
    * //Reading a POINTER value (Note the dereference operator ^)
    * const ptrValue = await client.readRawByPath('GVL_Read.ComplexTypes.POINTER_^');
@@ -5653,7 +5661,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * const refValue = await client.readRawByPath('GVL_Read.ComplexTypes.REFERENCE_');
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5667,7 +5675,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`readRawByPath(): Client is not connected. Use connect() to connect to the target first.`);
     }
     path = path.trim();
-    this.debug(`readRawByPath(): Reading raw data from ${path}`);
+    this.debug?.(`readRawByPath(): Reading raw data from ${path}`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + path.length + 1);
@@ -5701,11 +5709,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`readRawByPath(): Reading raw data from ${path} done (${res.ads.length} bytes)`);
+      this.debug?.(`readRawByPath(): Reading raw data from ${path} done (${res.ads.length} bytes)`);
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readRawByPath(): Reading raw data from ${path} failed: %o`, err);
+      this.debug?.(`readRawByPath(): Reading raw data from ${path} failed: %o`, err);
       throw new ClientError(`readRawByPath(): Reading raw data from ${path} failed`, err);
     }
   }
@@ -5721,7 +5729,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.convertToRaw(32767, 'INT');
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    *  await client.writeRawByPath('GVL_Write.StandardTypes.INT_', data);
    * 
@@ -5734,7 +5742,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * await client.writeRawByPath('GVL_Write.ComplexTypes.REFERENCE_');
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5749,7 +5757,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`writeRawByPath(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`writeRawByPath(): Writing raw data to ${path} (${value.byteLength} bytes)`);
+    this.debug?.(`writeRawByPath(): Writing raw data to ${path} (${value.byteLength} bytes)`);
 
     try {
       let handle = null;
@@ -5764,10 +5772,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         }
       }
 
-      this.debug(`writeRawByPath(): Writing raw data to ${path} done (${value.byteLength} bytes)`);
+      this.debug?.(`writeRawByPath(): Writing raw data to ${path} done (${value.byteLength} bytes)`);
 
     } catch (err) {
-      this.debug(`writeRawByPath(): Writing raw data to ${path} failed: %o`, err);
+      this.debug?.(`writeRawByPath(): Writing raw data to ${path} failed: %o`, err);
       throw new ClientError(`writeRawByPath(): Writing raw data to ${path} failed`, err);
     }
   }
@@ -5786,10 +5794,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //Reading raw value by symbol path (= same as readRawByPath())
    *  const path = ADS.encodeStringToPlcStringBuffer('GVL_Read.StandardTypes.INT_');
    *  const data = await client.readWriteRaw(ADS.ADS_RESERVED_INDEX_GROUPS.SymbolValueByName, 0, 0xFFFFFFFF, path);
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -5805,7 +5813,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`readWriteRaw(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`readWriteRaw(): Sending ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })} with ${value.byteLength} bytes of data`);
+    this.debug?.(`readWriteRaw(): Sending ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })} with ${value.byteLength} bytes of data`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + value.byteLength);
@@ -5839,12 +5847,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`readWriteRaw(): ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })}) done - returned ${res.ads.payload.byteLength} bytes`);
+      this.debug?.(`readWriteRaw(): ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })}) done - returned ${res.ads.payload.byteLength} bytes`);
 
       return res.ads.payload;
 
     } catch (err) {
-      this.debug(`readWriteRaw(): ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })}) failed: %o`, err);
+      this.debug?.(`readWriteRaw(): ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })}) failed: %o`, err);
       throw new ClientError(`readWriteRaw(): ReadWrite command (${JSON.stringify({ indexGroup, indexOffset, size })}) failed`, err);
     }
   }
@@ -5881,13 +5889,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  ]);
    *  
    *  if(results[0].success) {
-   *    console.log(`First result: ${results[0].value}`); //First result: <Buffer ff 7f>
+   *    consol?.(`First result: ${results[0].value}`); //First result: <Buffer ff 7f>
    *  } else {
-   *    console.log(`First read/write command failed: ${results[0].errorStr}`);
+   *    consol?.(`First read/write command failed: ${results[0].errorStr}`);
    *  }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * 
    * ```
@@ -5901,7 +5909,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`readWriteRawMulti(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands`);
+    this.debug?.(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands`);
     const totalSize = commands.reduce((total, command) => total + command.size, 0);
     const totalWriteSize = commands.reduce((total, command) => total + command.value.byteLength, 0);
 
@@ -5958,7 +5966,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands done`);
+      this.debug?.(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands done`);
 
       let pos = 0;
       const response = res.ads.payload;
@@ -6001,7 +6009,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return results;
 
     } catch (err) {
-      this.debug(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands failed: %o`, err);
+      this.debug?.(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands failed: %o`, err);
       throw new ClientError(`readWriteRawMulti(): Sending ${commands.length} ReadWrite commands failed`, err);
     }
   }
@@ -6022,9 +6030,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const res = await client.readValue('GVL_Read.StandardTypes.INT_');
-   *  console.log(res.value);
+   *  consol?.(res.value);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6039,55 +6047,55 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`readValue(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`readValue(): Reading value from ${path}`);
+    this.debug?.(`readValue(): Reading value from ${path}`);
 
     //Getting the symbol
     let symbol: AdsSymbol;
     try {
-      this.debugD(`readValue(): Getting symbol for ${path}`);
+      this.debugD?.(`readValue(): Getting symbol for ${path}`);
       symbol = await this.getSymbol(path, targetOpts);
 
     } catch (err) {
-      this.debug(`readValue(): Getting symbol for ${path} failed: %o`, err);
+      this.debug?.(`readValue(): Getting symbol for ${path} failed: %o`, err);
       throw new ClientError(`readValue(): Getting symbol for ${path} failed`, err);
     }
 
     //Getting the symbol data type
     let dataType: AdsDataType;
     try {
-      this.debugD(`readValue(): Getting data type for ${path}`);
+      this.debugD?.(`readValue(): Getting data type for ${path}`);
 
       //Also passing size for TC2 pointer/pseudo type support
       dataType = await this.buildDataType(symbol.type, targetOpts, true, symbol.size);
 
     } catch (err) {
-      this.debug(`readValue(): Getting data type for ${path} failed: %o`, err);
+      this.debug?.(`readValue(): Getting data type for ${path} failed: %o`, err);
       throw new ClientError(`readValue(): Getting data type for ${path} failed`, err);
     }
 
     //Reading value by the symbol address
     let rawValue: Buffer;
     try {
-      this.debugD(`readValue(): Reading raw value from ${path}`);
+      this.debugD?.(`readValue(): Reading raw value from ${path}`);
       rawValue = await this.readRaw(symbol.indexGroup, symbol.indexOffset, symbol.size, targetOpts);
 
     } catch (err) {
-      this.debug(`readValue(): Reading raw value from ${path} failed: %o`, err);
+      this.debug?.(`readValue(): Reading raw value from ${path} failed: %o`, err);
       throw new ClientError(`readValue(): Reading raw value from ${path} failed`, err);
     }
 
     //Converting byte data to javascript object
     let value: T;
     try {
-      this.debugD(`readValue(): Converting raw value to object for ${path}`);
+      this.debugD?.(`readValue(): Converting raw value to object for ${path}`);
       value = await this.convertBufferToObject<T>(rawValue, dataType);
 
     } catch (err) {
-      this.debug(`readValue(): Converting raw value to object for ${path} failed: %o`, err);
+      this.debug?.(`readValue(): Converting raw value to object for ${path} failed: %o`, err);
       throw new ClientError(`readValue(): Converting raw value to object for ${path} failed`, err);
     }
 
-    this.debug(`readValue(): Reading value from ${path} done`);
+    this.debug?.(`readValue(): Reading value from ${path} done`);
 
     return {
       value,
@@ -6115,9 +6123,9 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  const symbol = await client.getSymbol('GVL_Read.StandardTypes.INT_');
    * 
    *  const res = await client.readValueBySymbol(symbol);
-   *  console.log(res.value);
+   *  consol?.(res.value);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6153,10 +6161,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const res = await client.writeValue('GVL_Write.StandardTypes.INT_', 32767);
-   *  console.log('Value written:', res.value);
+   *  consol?.('Value written:', res.value);
    *  
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6173,29 +6181,29 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`writeValue(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`writeValue(): Writing value to ${path}`);
+    this.debug?.(`writeValue(): Writing value to ${path}`);
 
     //Getting the symbol
     let symbol: AdsSymbol;
     try {
-      this.debugD(`writeValue(): Getting symbol for ${path}`);
+      this.debugD?.(`writeValue(): Getting symbol for ${path}`);
       symbol = await this.getSymbol(path, targetOpts);
 
     } catch (err) {
-      this.debug(`writeValue(): Getting symbol for ${path} failed: %o`, err);
+      this.debug?.(`writeValue(): Getting symbol for ${path} failed: %o`, err);
       throw new ClientError(`writeValue(): Getting symbol for ${path} failed`, err);
     }
 
     //Getting the symbol data type
     let dataType: AdsDataType;
     try {
-      this.debugD(`writeValue(): Getting data type for ${path}`);
+      this.debugD?.(`writeValue(): Getting data type for ${path}`);
 
       //Also passing size for TC2 pointer/pseudo type support
       dataType = await this.buildDataType(symbol.type, targetOpts, true, symbol.size);
 
     } catch (err) {
-      this.debug(`writeValue(): Getting data type for ${path} failed: %o`, err);
+      this.debug?.(`writeValue(): Getting data type for ${path} failed: %o`, err);
       throw new ClientError(`writeValue(): Getting data type for ${path} failed`, err);
     }
 
@@ -6206,12 +6214,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       if (res.missingProperty && autoFill) {
         //Some fields are missing and autoFill is used -> try to auto fill missing values
-        this.debug(`writeValue(): Autofilling missing fields with active values`);
+        this.debug?.(`writeValue(): Autofilling missing fields with active values`);
 
-        this.debugD(`writeValue(): Reading active value`);
+        this.debugD?.(`writeValue(): Reading active value`);
         const valueNow = await this.readValue(path, targetOpts);
 
-        this.debugD(`writeValue(): Merging objects (adding missing fields)`);
+        this.debugD?.(`writeValue(): Merging objects (adding missing fields)`);
         value = this.deepMergeObjects(false, valueNow.value, value);
 
         //Try conversion again - should work now
@@ -6237,21 +6245,21 @@ export class Client extends EventEmitter<AdsClientEvents> {
         throw err;
       }
 
-      this.debug(`writeValue(): Converting object to raw value for ${path} failed: %o`, err);
+      this.debug?.(`writeValue(): Converting object to raw value for ${path} failed: %o`, err);
       throw new ClientError(`writeValue(): Converting object to raw value for ${path} failed`, err);
     }
 
     //Writing value by the symbol address
     try {
-      this.debugD(`writeValue(): Writing raw value to ${path}`);
+      this.debugD?.(`writeValue(): Writing raw value to ${path}`);
       await this.writeRaw(symbol.indexGroup, symbol.indexOffset, rawValue, targetOpts);
 
     } catch (err) {
-      this.debug(`writeValue(): Writing raw value to ${path} failed: %o`, err);
+      this.debug?.(`writeValue(): Writing raw value to ${path} failed: %o`, err);
       throw new ClientError(`writeValue(): Writing raw value to ${path} failed`, err);
     }
 
-    this.debug(`writeValue(): Writing value to ${path} done`);
+    this.debug?.(`writeValue(): Writing value to ${path} done`);
 
     return {
       value,
@@ -6282,7 +6290,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * 
    *  const res = await client.writeValueBySymbol(symbol, 32767);
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6309,13 +6317,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const res = await client.getDefaultPlcObject('INT');
-   *  console.log(res); //0
+   *  consol?.(res); //0
 
    *  const res2 = await client.getDefaultPlcObject('Tc2_Standard.TON');
-   *  console.log(res2); //{ IN: false, PT: 0, Q: false, ET: 0, M: false, StartTime: 0 }
+   *  consol?.(res2); //{ IN: false, PT: 0, Q: false, ET: 0, M: false, StartTime: 0 }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6330,16 +6338,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`getDefaultPlcObject(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`getDefaultPlcObject(): Creating empty default object for ${typeof dataType === 'string' ? dataType : dataType.type}`);
+    this.debug?.(`getDefaultPlcObject(): Creating empty default object for ${typeof dataType === 'string' ? dataType : dataType.type}`);
 
     //Getting data type information, unless given as parameter
     if (typeof dataType === 'string') {
       try {
-        this.debugD(`getDefaultPlcObject(): Getting data type for ${dataType}`);
+        this.debugD?.(`getDefaultPlcObject(): Getting data type for ${dataType}`);
         dataType = await this.buildDataType(dataType, targetOpts);
 
       } catch (err) {
-        this.debug(`getDefaultPlcObject(): Getting data type information for ${dataType} failed: %o`, err);
+        this.debug?.(`getDefaultPlcObject(): Getting data type information for ${dataType} failed: %o`, err);
         throw new ClientError(`getDefaultPlcObject(): Getting data type information for ${dataType} failed`, err);
       }
     }
@@ -6347,7 +6355,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //Converting raw byte data to Javascript object
     let value: T = await this.convertFromRaw(Buffer.alloc(dataType.size), dataType, targetOpts);
 
-    this.debug(`getDefaultPlcObject(): Empty default object created for ${dataType.type}`);
+    this.debug?.(`getDefaultPlcObject(): Empty default object created for ${dataType.type}`);
     return value;
   }
 
@@ -6358,13 +6366,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.readRaw(16448, 414816, 2);
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    *  const converted = await client.convertFromRaw(data, 'INT');
-   *  console.log(converted); //32767
+   *  consol?.(converted); //32767
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6380,16 +6388,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`convertFromRaw(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`convertFromRaw(): Converting ${data.byteLength} bytes of data to ${typeof dataType === 'string' ? dataType : dataType.type}`);
+    this.debug?.(`convertFromRaw(): Converting ${data.byteLength} bytes of data to ${typeof dataType === 'string' ? dataType : dataType.type}`);
 
     //Getting data type information, unless given as parameter
     if (typeof dataType === 'string') {
       try {
-        this.debugD(`convertFromRaw(): Getting data type for ${dataType}`);
+        this.debugD?.(`convertFromRaw(): Getting data type for ${dataType}`);
         dataType = await this.buildDataType(dataType, targetOpts);
 
       } catch (err) {
-        this.debug(`convertFromRaw(): Getting data type information for ${dataType} failed: %o`, err);
+        this.debug?.(`convertFromRaw(): Getting data type information for ${dataType} failed: %o`, err);
         throw new ClientError(`convertFromRaw(): Getting data type information for ${dataType} failed`, err);
       }
     }
@@ -6397,15 +6405,15 @@ export class Client extends EventEmitter<AdsClientEvents> {
     //Converting raw byte data to Javascript object
     let value: T;
     try {
-      this.debugD(`convertFromRaw(): Converting raw value to object for ${dataType.type}`);
+      this.debugD?.(`convertFromRaw(): Converting raw value to object for ${dataType.type}`);
       value = await this.convertBufferToObject<T>(data, dataType);
 
     } catch (err) {
-      this.debug(`convertFromRaw(): Converting raw value to object for ${dataType.type} failed: %o`, err);
+      this.debug?.(`convertFromRaw(): Converting raw value to object for ${dataType.type} failed: %o`, err);
       throw new ClientError(`convertFromRaw(): Converting raw value to object for ${dataType.type} failed`, err);
     }
 
-    this.debug(`convertFromRaw(): Converted ${data.byteLength} bytes of data to ${dataType.type} successfully`);
+    this.debug?.(`convertFromRaw(): Converted ${data.byteLength} bytes of data to ${dataType.type} successfully`);
     return value;
   }
 
@@ -6418,10 +6426,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const data = await client.convertToRaw(32767, 'INT');
-   *  console.log(data); //<Buffer ff 7f>
+   *  consol?.(data); //<Buffer ff 7f>
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6437,16 +6445,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`convertToRaw(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`convertToRaw(): Converting object to ${typeof dataType === 'string' ? dataType : dataType.type}`);
+    this.debug?.(`convertToRaw(): Converting object to ${typeof dataType === 'string' ? dataType : dataType.type}`);
 
     //Getting data type information, unless given as parameter
     if (typeof dataType === 'string') {
       try {
-        this.debugD(`convertToRaw(): Getting data type for ${dataType}`);
+        this.debugD?.(`convertToRaw(): Getting data type for ${dataType}`);
         dataType = await this.buildDataType(dataType, targetOpts);
 
       } catch (err) {
-        this.debug(`convertToRaw(): Getting data type information for ${dataType} failed: %o`, err);
+        this.debug?.(`convertToRaw(): Getting data type information for ${dataType} failed: %o`, err);
         throw new ClientError(`convertToRaw(): Getting data type information for ${dataType} failed`, err);
       }
     }
@@ -6458,12 +6466,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       if (res.missingProperty && autoFill) {
         //Some fields are missing and autoFill is used -> try to auto fill missing values
-        this.debug(`convertToRaw(): Autofilling missing fields with default/zero values`);
+        this.debug?.(`convertToRaw(): Autofilling missing fields with default/zero values`);
 
-        this.debugD(`convertToRaw(): Creating default object`);
+        this.debugD?.(`convertToRaw(): Creating default object`);
         const defaultValue = await this.getDefaultPlcObject(dataType, targetOpts);
 
-        this.debugD(`convertToRaw(): Merging objects (adding missing fields)`);
+        this.debugD?.(`convertToRaw(): Merging objects (adding missing fields)`);
         value = this.deepMergeObjects(false, defaultValue, value);
 
         //Try conversion again - should work now
@@ -6483,7 +6491,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //We are here -> success!
       rawValue = res.rawValue;
 
-      this.debug(`convertToRaw(): Converted object to ${dataType.type} successfully`);
+      this.debug?.(`convertToRaw(): Converted object to ${dataType.type} successfully`);
       return rawValue;
 
     } catch (err) {
@@ -6492,7 +6500,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         throw err;
       }
 
-      this.debug(`convertToRaw(): Converting object to raw value for ${dataType.type} failed: %o`, err);
+      this.debug?.(`convertToRaw(): Converting object to raw value for ${dataType.type} failed: %o`, err);
       throw new ClientError(`convertToRaw(): Converting object to raw value for ${dataType.type} failed`, err);
     }
   }
@@ -6523,7 +6531,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  //Now you use convertFromRaw() to get actual values
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6536,7 +6544,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`createVariableHandle(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`createVariableHandle(): Creating variable handle to ${path}`);
+    this.debug?.(`createVariableHandle(): Creating variable handle to ${path}`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + path.length + 1);
@@ -6594,12 +6602,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //10..n Data type
       result.dataType = ADS.decodePlcStringBuffer(response.subarray(pos, pos + dataTypeLength + 1));
 
-      this.debug(`createVariableHandle(): Variable handle created to ${path}`);
+      this.debug?.(`createVariableHandle(): Variable handle created to ${path}`);
 
       return result;
 
     } catch (err) {
-      this.debug(`createVariableHandle(): Creating variable handle to ${path} failed: %o`, err);
+      this.debug?.(`createVariableHandle(): Creating variable handle to ${path} failed: %o`, err);
       throw new ClientError(`createVariableHandle(): Creating variable handle to ${path} failed`, err);
     }
   }
@@ -6629,13 +6637,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  ]);
    *  
    *  if(results[0].success) {
-   *    console.log(`First handle: ${results[0].handle}`);
+   *    consol?.(`First handle: ${results[0].handle}`);
    *  } else {
-   *    console.log(`Creating first handle failed: ${results[0].errorStr}`);
+   *    consol?.(`Creating first handle failed: ${results[0].errorStr}`);
    *  }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6648,7 +6656,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`createVariableHandleMulti(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths`);
+    this.debug?.(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths`);
     const totalPathsLength = paths.reduce((total, path) => total + path.length + 1, 0);
 
     //Allocating bytes for request
@@ -6704,7 +6712,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths done`);
+      this.debug?.(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths done`);
 
       let pos = 0;
       const response = res.ads.payload;
@@ -6769,7 +6777,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return results;
 
     } catch (err) {
-      this.debug(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths failed: %o`, err);
+      this.debug?.(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths failed: %o`, err);
       throw new ClientError(`createVariableHandleMulti(): Creating variable handle to ${paths.length} paths failed`, err);
     }
   }
@@ -6787,7 +6795,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  await client.deleteVariableHandle(handle);
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6803,7 +6811,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
     const handleNumber = typeof handle === 'number' ? handle : handle.handle;
 
-    this.debug(`deleteVariableHandle(): Deleting a variable handle ${handleNumber}`);
+    this.debug?.(`deleteVariableHandle(): Deleting a variable handle ${handleNumber}`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16);
@@ -6833,10 +6841,10 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`deleteVariableHandle(): Variable handle ${handleNumber} deleted`);
+      this.debug?.(`deleteVariableHandle(): Variable handle ${handleNumber} deleted`);
 
     } catch (err) {
-      this.debug(`deleteVariableHandle(): Deleting variable handle ${handleNumber} failed: %o`, err);
+      this.debug?.(`deleteVariableHandle(): Deleting variable handle ${handleNumber} failed: %o`, err);
       throw new ClientError(`deleteVariableHandle(): Deleting variable handle ${handleNumber} failed`, err);
     }
   }
@@ -6861,13 +6869,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  const results = await client.deleteVariableHandleMulti([handle1, handle2]);
    * 
    *  if(results[0].success) {
-   *    console.log(`First deleted`);
+   *    consol?.(`First deleted`);
    *  } else {
-   *    console.log(`Deleting first handle failed: ${results[0].errorStr}`);
+   *    consol?.(`Deleting first handle failed: ${results[0].errorStr}`);
    *  }
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -6880,7 +6888,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     if (!this.connection.connected) {
       throw new ClientError(`deleteVariableHandleMulti(): Client is not connected. Use connect() to connect to the target first.`);
     }
-    this.debug(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles`);
+    this.debug?.(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles`);
 
     //Allocating bytes for request
     const data = Buffer.alloc(16 + handles.length * 16);
@@ -6933,7 +6941,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         payload: data
       });
 
-      this.debug(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles done`);
+      this.debug?.(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles done`);
 
       let pos = 0;
       let results: DeleteVariableHandleMultiResult[] = [];
@@ -6957,7 +6965,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
       return results;
 
     } catch (err) {
-      this.debug(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles failed: %o`, err);
+      this.debug?.(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles failed: %o`, err);
       throw new ClientError(`deleteVariableHandleMulti(): Deleting ${handles.length} variable handles failed`, err);
     }
   }
@@ -6973,7 +6981,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  await client.deleteVariableHandle(handle); 
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * @param handle Variable handle
@@ -6988,7 +6996,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
     const handleNumber = typeof handle === 'number' ? handle : handle.handle;
 
-    this.debug(`readRawByHandle(): Reading raw data by handle ${handleNumber}`);
+    this.debug?.(`readRawByHandle(): Reading raw data by handle ${handleNumber}`);
 
     try {
       const dataSize = typeof handle === 'object' && handle.size !== undefined
@@ -6999,11 +7007,11 @@ export class Client extends EventEmitter<AdsClientEvents> {
 
       const res = await this.readRaw(ADS.ADS_RESERVED_INDEX_GROUPS.SymbolValueByHandle, handleNumber, dataSize, targetOpts);
 
-      this.debug(`readRawByHandle(): Reading raw data by handle ${handleNumber} done (${res.byteLength} bytes)`);
+      this.debug?.(`readRawByHandle(): Reading raw data by handle ${handleNumber} done (${res.byteLength} bytes)`);
       return res;
 
     } catch (err) {
-      this.debug(`readRawByHandle(): Reading raw data by handle ${handleNumber} failed: %o`, err);
+      this.debug?.(`readRawByHandle(): Reading raw data by handle ${handleNumber} failed: %o`, err);
       throw new ClientError(`readRawByHandle(): Reading raw data by handle ${handleNumber} failed`, err);
     }
   }
@@ -7015,14 +7023,14 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const value = await client.convertToRaw(32767, 'INT');
-   *  console.log(value); //<Buffer ff 7f>
+   *  consol?.(value); //<Buffer ff 7f>
    * 
    *  const handle = await client.createVariableHandle('GVL_Read.StandardTypes.INT_');
    *  await client.writeRawByHandle(handle, value);
    *  await client.deleteVariableHandle(handle); 
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -7038,15 +7046,15 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
     const handleNumber = typeof handle === 'number' ? handle : handle.handle;
 
-    this.debug(`writeRawByHandle(): Writing raw data by handle ${handleNumber} (${value.byteLength} bytes)`);
+    this.debug?.(`writeRawByHandle(): Writing raw data by handle ${handleNumber} (${value.byteLength} bytes)`);
 
     try {
       const res = await this.writeRaw(ADS.ADS_RESERVED_INDEX_GROUPS.SymbolValueByHandle, handleNumber, value, targetOpts);
 
-      this.debug(`writeRawByHandle(): Writing raw data by handle ${handleNumber} done (${value.byteLength} bytes)`);
+      this.debug?.(`writeRawByHandle(): Writing raw data by handle ${handleNumber} done (${value.byteLength} bytes)`);
 
     } catch (err) {
-      this.debug(`writeRawByHandle(): Writing raw data by handle ${handleNumber} failed: %o`, err);
+      this.debug?.(`writeRawByHandle(): Writing raw data by handle ${handleNumber} failed: %o`, err);
       throw new ClientError(`writeRawByHandle(): Writing raw data by handle ${handleNumber} failed`, err);
     }
   }
@@ -7061,7 +7069,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *  const value = await client.readRawBySymbol(symbol);
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -7075,16 +7083,16 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`readRawBySymbol(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`readRawBySymbol(): Reading raw data by symbol ${symbol.name}`);
+    this.debug?.(`readRawBySymbol(): Reading raw data by symbol ${symbol.name}`);
 
     try {
       const res = await this.readRaw(symbol.indexGroup, symbol.indexOffset, symbol.size, targetOpts);
 
-      this.debug(`readRawBySymbol(): Reading raw data read by symbol ${symbol.name} done (${res.byteLength} bytes)`);
+      this.debug?.(`readRawBySymbol(): Reading raw data read by symbol ${symbol.name} done (${res.byteLength} bytes)`);
       return res;
 
     } catch (err) {
-      this.debug(`readRawBySymbol(): Reading raw data by symbol ${symbol.name} failed: %o`, err);
+      this.debug?.(`readRawBySymbol(): Reading raw data by symbol ${symbol.name} failed: %o`, err);
       throw new ClientError(`readRawBySymbol(): Reading raw data by symbol ${symbol.name} failed`, err);
     }
   }
@@ -7096,13 +7104,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * ```js
    * try {
    *  const value = await client.convertToRaw(32767, 'INT');
-   *  console.log(value); //<Buffer ff 7f>
+   *  consol?.(value); //<Buffer ff 7f>
    * 
    *  const symbol = await client.getSymbol('GVL_Read.StandardTypes.INT_');
    *  await client.writeRawBySymbol(symbol, value);
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -7117,15 +7125,15 @@ export class Client extends EventEmitter<AdsClientEvents> {
       throw new ClientError(`writeRawBySymbol(): Client is not connected. Use connect() to connect to the target first.`);
     }
 
-    this.debug(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} (${value.byteLength} bytes)`);
+    this.debug?.(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} (${value.byteLength} bytes)`);
 
     try {
       await this.writeRaw(symbol.indexGroup, symbol.indexOffset, value, targetOpts);
 
-      this.debug(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} done (${value.byteLength} bytes)`);
+      this.debug?.(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} done (${value.byteLength} bytes)`);
 
     } catch (err) {
-      this.debug(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} failed: %o`, err);
+      this.debug?.(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} failed: %o`, err);
       throw new ClientError(`writeRawBySymbol(): Writing raw data by symbol ${symbol.name} failed`, err);
     }
   }
@@ -7144,15 +7152,15 @@ export class Client extends EventEmitter<AdsClientEvents> {
    *    Value1: 1,
    *    Value2: 123
    *  });
-   * 
-   *  console.log(res);
+   *
+   *  consol?.(res);
    *  //{
    *  //  returnValue: true,
    *  //  outputs: { Sum: 124, Product: 123, Division: 0.008130080997943878 }
    *  //}
    * 
    * } catch (err) {
-   *  console.log("Error:", err);
+   *  consol?.("Error:", err);
    * }
    * ```
    * 
@@ -7172,28 +7180,28 @@ export class Client extends EventEmitter<AdsClientEvents> {
     }
 
     const debugPath = `${path}.${method}()`;
-    this.debug(`invokeRpcMethod(): Calling RPC method ${debugPath}`);
+    this.debug?.(`invokeRpcMethod(): Calling RPC method ${debugPath}`);
 
     try {
       //Getting the symbol
       let symbol: AdsSymbol;
       try {
-        this.debugD(`invokeRpcMethod(): Getting symbol for ${path}`);
+        this.debugD?.(`invokeRpcMethod(): Getting symbol for ${path}`);
         symbol = await this.getSymbol(path, targetOpts);
 
       } catch (err) {
-        this.debug(`invokeRpcMethod(): Getting symbol for ${path} failed: %o`, err);
+        this.debug?.(`invokeRpcMethod(): Getting symbol for ${path} failed: %o`, err);
         throw new ClientError(`invokeRpcMethod(): Getting symbol for ${path} failed`, err);
       }
 
       //Getting the symbol data type
       let dataType: AdsDataType;
       try {
-        this.debugD(`invokeRpcMethod(): Getting data type for ${path}`);
+        this.debugD?.(`invokeRpcMethod(): Getting data type for ${path}`);
         dataType = await this.buildDataType(symbol.type, targetOpts);
 
       } catch (err) {
-        this.debug(`invokeRpcMethod(): Getting data type for ${path} failed: %o`, err);
+        this.debug?.(`invokeRpcMethod(): Getting data type for ${path} failed: %o`, err);
         throw new ClientError(`invokeRpcMethod(): Getting data type for ${path} failed`, err);
       }
 
@@ -7250,12 +7258,12 @@ export class Client extends EventEmitter<AdsClientEvents> {
       //Creating a handle to the RPC method
       let handle: VariableHandle;
       try {
-        this.debugD(`invokeRpcMethod(): Creating a variable handle for ${debugPath}`);
+        this.debugD?.(`invokeRpcMethod(): Creating a variable handle for ${debugPath}`);
         //NOTE: #
         handle = await this.createVariableHandle(`${path}#${method}`, targetOpts);
 
       } catch (err) {
-        this.debug(`invokeRpcMethod(): Creating a variable handle for ${debugPath} failed: %o`, err);
+        this.debug?.(`invokeRpcMethod(): Creating a variable handle for ${debugPath} failed: %o`, err);
         throw new ClientError(`invokeRpcMethod(): Creating a variable handle for ${debugPath} failed`, err);
       }
 
@@ -7290,7 +7298,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           payload: data
         });
 
-        this.debug(`invokeRpcMethod(): Calling RPC method ${debugPath} done!`);
+        this.debug?.(`invokeRpcMethod(): Calling RPC method ${debugPath} done!`);
 
         let pos = 0;
         const result: RpcMethodCallResult<T, U> = {
@@ -7313,7 +7321,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
         return result;
 
       } catch (err) {
-        this.debug(`invokeRpcMethod(): Calling RPC method ${debugPath} failed: %o`, err);
+        this.debug?.(`invokeRpcMethod(): Calling RPC method ${debugPath} failed: %o`, err);
         throw new ClientError(`invokeRpcMethod(): Calling RPC method ${debugPath} failed`, err);
 
       } finally {
@@ -7322,13 +7330,13 @@ export class Client extends EventEmitter<AdsClientEvents> {
           try {
             await this.deleteVariableHandle(handle);
           } catch (err) {
-            this.debug(`invokeRpcMethod(): Deleting variable handle to RPC method failed: %o`, err);
+            this.debug?.(`invokeRpcMethod(): Deleting variable handle to RPC method failed: %o`, err);
           }
         }
       }
 
     } catch (err) {
-      this.debug(`invokeRpcMethod(): Calling RPC method ${debugPath} failed: %o`, err);
+      this.debug?.(`invokeRpcMethod(): Calling RPC method ${debugPath} failed: %o`, err);
       throw new ClientError(`invokeRpcMethod(): Calling RPC method ${debugPath} failed`, err);
     }
   }
