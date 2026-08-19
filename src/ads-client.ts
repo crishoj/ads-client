@@ -161,22 +161,29 @@ export class Client extends EventEmitter<AdsClientEvents> {
   private debugLevel_: DebugLevel = 0;
 
   /**
-   * Default metadata (when no active connection).
+   * Returns fresh default metadata (when no active connection).
+   *
+   * A new object graph is created on every call. The cache containers
+   * (`plcSymbols`, `plcDataTypes`, `builtDataTypes`) must never be shared between
+   * connections: reusing them would keep pre-disconnect symbols and data types alive,
+   * so a reconnect after a PLC code download would decode using the old memory layout.
    */
-  private defaultMetaData: ConnectionMetaData = {
-    routerState: undefined,
-    tcSystemState: undefined,
-    plcDeviceInfo: undefined,
-    plcRuntimeState: undefined,
-    plcUploadInfo: undefined,
-    plcSymbolVersion: undefined,
-    allPlcSymbolsCached: false,
-    plcSymbols: {},
-    allPlcDataTypesCached: false,
-    plcDataTypes: {},
-    builtDataTypes: {},
-    adsSymbolsUseUtf8: false
-  };
+  private defaultMetaData(): ConnectionMetaData {
+    return {
+      routerState: undefined,
+      tcSystemState: undefined,
+      plcDeviceInfo: undefined,
+      plcRuntimeState: undefined,
+      plcUploadInfo: undefined,
+      plcSymbolVersion: undefined,
+      allPlcSymbolsCached: false,
+      plcSymbols: {},
+      allPlcDataTypesCached: false,
+      plcDataTypes: {},
+      builtDataTypes: {},
+      adsSymbolsUseUtf8: false
+    };
+  }
 
   /**
    * Callback used for AMS/TCP commands, such as port registering.
@@ -325,7 +332,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
    * 
    * Some properties might not be available in all connection setups and setting combinations.
    */
-  public metaData: ConnectionMetaData = { ...this.defaultMetaData };
+  public metaData: ConnectionMetaData = this.defaultMetaData();
 
   /**
    * Container for all active subscriptions.
@@ -669,7 +676,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           connected: false
         };
 
-        this.metaData = { ...this.defaultMetaData };
+        this.metaData = this.defaultMetaData();
         this.activeSubscriptions = {};
 
         this.socket?.removeAllListeners();
@@ -698,7 +705,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           connected: false
         };
 
-        this.metaData = { ...this.defaultMetaData };
+        this.metaData = this.defaultMetaData();
         this.activeSubscriptions = {};
 
         this.socket?.removeAllListeners();
@@ -725,7 +732,7 @@ export class Client extends EventEmitter<AdsClientEvents> {
           connected: false
         };
 
-        this.metaData = { ...this.defaultMetaData };
+        this.metaData = this.defaultMetaData();
         this.activeSubscriptions = {};
 
         this.debug(`disconnectFromTarget(): Connection closing failed, connection was forced to close`);
